@@ -1,0 +1,28 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "odin debug build",
+            "type": "shell",
+            "command": "odin",
+            "args": [
+                "build",
+                "${workspaceRoot}",
+                "-debug",
+                "-out:${workspaceRoot}/build/Conveyor.exe"
+            ],
+        },
+        {
+            "label": "odin release build",
+            "type": "shell",
+            "command": "odin",
+            "args": [
+                "build",
+                "${workspaceRoot}",
+                "-out:${workspaceRoot}/build/Conveyor.exe"
+            ],
+        },
+    ]
+}
