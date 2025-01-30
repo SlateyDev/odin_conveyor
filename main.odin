@@ -37,6 +37,21 @@ Player :: struct {
 	moveSpeed: f32,
 }
 
+ConveyorFrame :: struct {
+	sourcePosition : raylib.Vector2,
+}
+
+verticalConveyor : [8]ConveyorFrame = {
+	ConveyorFrame {sourcePosition = raylib.Vector2{32, 0}},
+	ConveyorFrame {sourcePosition = raylib.Vector2{16, 16}},
+	ConveyorFrame {sourcePosition = raylib.Vector2{64, 16}},
+	ConveyorFrame {sourcePosition = raylib.Vector2{32, 32}},
+	ConveyorFrame {sourcePosition = raylib.Vector2{0, 48}},
+	ConveyorFrame {sourcePosition = raylib.Vector2{48, 48}},
+	ConveyorFrame {sourcePosition = raylib.Vector2{16, 64}},
+	ConveyorFrame {sourcePosition = raylib.Vector2{64, 64}},
+}
+
 player_update :: proc(entity: ^Player, deltaTime: f32) {
 	deltaX : f32 = 0.0
 	deltaY : f32 = 0.0
@@ -121,15 +136,17 @@ main :: proc() {
 	}
 	player.derived = &player
 
-	// numFrames := 6
-	// currentFrame := 0
-	// framesCounter: = 0.0
-	// framesSpeed := 8.0
+	numFrames := 8
+	currentFrame := 0
+	framesCounter : f32 = 0.0
+	framesSpeed : f32 = 60.0
 
 	TILE_SIZE :: 16
 
 	InitWindow(screenWidth, screenHeight, "Conveyor")
 	defer CloseWindow()
+
+	conveyorTexture := LoadTexture("Conveyor.png")
 
 	SetWindowState({ConfigFlag.WINDOW_RESIZABLE})
 
@@ -141,16 +158,24 @@ main :: proc() {
 	}
 
 	for !WindowShouldClose() {
-		// framesCounter += 1
-
-		// if framesCounter >= (60.0 / framesSpeed) {
-		// 	framesCounter = 0
-		// 	currentFrame += 1
-
-		// 	if currentFrame >= numFrames do currentFrame = 0
-		// }
-
 		deltaTime := GetFrameTime()
+
+		framesCounter += deltaTime
+
+		if framesCounter >= (60.0 / framesSpeed) {
+			fmt.println("Frame")
+			framesCounter -= (60.0 / framesSpeed)
+			currentFrame += 1
+
+			if currentFrame >= numFrames do currentFrame = 0
+		}
+
+		if (IsKeyDown(KeyboardKey.RIGHT)) do framesSpeed += 5.0
+		if (IsKeyDown(KeyboardKey.LEFT)) do framesSpeed -= 5.0
+
+		if (framesSpeed > 10000.0) do framesSpeed = 10000.0
+		if (framesSpeed < 30.0) do framesSpeed = 30.0
+
 		player_update(&player, deltaTime)
 
 		ballPosition := GetScreenToWorld2D(GetMousePosition(), camera)
@@ -182,6 +207,9 @@ main :: proc() {
 
 			fpsStringLength := MeasureText(fpsString, 20)
 			DrawText(fpsString, GetScreenWidth() - fpsStringLength - 20, 20, 20, WHITE)
+
+			DrawTextureRec(conveyorTexture, Rectangle{verticalConveyor[currentFrame].sourcePosition.x, verticalConveyor[currentFrame].sourcePosition.y, 16, 16}, Vector2{16, 16}, WHITE)
+			DrawTexturePro(conveyorTexture, Rectangle{verticalConveyor[currentFrame].sourcePosition.x, verticalConveyor[currentFrame].sourcePosition.y, 16, 16}, Rectangle{128, 128, 64, 64}, Vector2{32, 32}, 0, WHITE)
 		}
 	}
 
