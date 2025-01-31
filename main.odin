@@ -196,13 +196,15 @@ main :: proc() {
 			if currentFrame >= numFrames do currentFrame = 0
 		}
 
-		if (rl.IsKeyDown(rl.KeyboardKey.RIGHT)) do framesSpeed += 5.0
-		if (rl.IsKeyDown(rl.KeyboardKey.LEFT)) do framesSpeed -= 5.0
+		if uiState.muContext.focus_id == 0 {
+			player_update(&player, deltaTime)
 
-		if (framesSpeed > 10000.0) do framesSpeed = 10000.0
-		if (framesSpeed < 30.0) do framesSpeed = 30.0
-
-		player_update(&player, deltaTime)
+			if (rl.IsKeyDown(rl.KeyboardKey.RIGHT)) do framesSpeed += 5.0
+			if (rl.IsKeyDown(rl.KeyboardKey.LEFT)) do framesSpeed -= 5.0
+	
+			if (framesSpeed > 10000.0) do framesSpeed = 10000.0
+			if (framesSpeed < 30.0) do framesSpeed = 30.0
+		}
 
 		ballPosition := rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
 
