@@ -241,7 +241,6 @@ main :: proc() {
 			} else if rl.IsMouseButtonReleased(button.rl_button) { 
 				mu.input_mouse_up(&uiState.muContext, mousePos.x, mousePos.y, button.mu_button)
 			}
-			
 		}
 
 		// keyboard
@@ -273,18 +272,21 @@ main :: proc() {
 
 		gridPositionX := i32(ballPosition.x / 16)
 		gridPositionY := i32(ballPosition.y / 16)
-		// fmt.printfln("Grid Position: (%d, %d, %d)", gridPositionX, gridPositionY, conveyorMap[MapPosition{gridPositionX, gridPositionY}])
-		// fmt.printfln("Exists %t", MapPosition{gridPositionX, gridPositionY} in conveyorMap)
 
-		if (rl.IsMouseButtonPressed(rl.MouseButton.LEFT)) {
-			append(&conveyorList, Conveyor {
-				position = MapPosition{gridPositionX, gridPositionY},
-				from = ConveyorDirection.S,
-				to = ConveyorDirection.N,
-			})
-		
-			fmt.printf("Inserted item: ", conveyorList[len(&conveyorList) - 1])
-			conveyorMap[MapPosition{gridPositionX, gridPositionY}] = &conveyorList[len(&conveyorList) - 1]
+		if uiState.muContext.hover_root == nil {
+			// fmt.printfln("Grid Position: (%d, %d, %d)", gridPositionX, gridPositionY, conveyorMap[MapPosition{gridPositionX, gridPositionY}])
+			// fmt.printfln("Exists %t", MapPosition{gridPositionX, gridPositionY} in conveyorMap)
+	
+			if (rl.IsMouseButtonPressed(rl.MouseButton.LEFT)) {
+				append(&conveyorList, Conveyor {
+					position = MapPosition{gridPositionX, gridPositionY},
+					from = ConveyorDirection.S,
+					to = ConveyorDirection.N,
+				})
+			
+				fmt.printf("Inserted item: ", conveyorList[len(&conveyorList) - 1])
+				conveyorMap[MapPosition{gridPositionX, gridPositionY}] = &conveyorList[len(&conveyorList) - 1]
+			}
 		}
 
 		builder := strings.builder_make()
@@ -306,15 +308,19 @@ main :: proc() {
 				}
 			}
 
+			// draw conveyors
 			for conveyor in conveyorList {
 				rl.DrawTextureRec(conveyorTexture, rl.Rectangle{verticalConveyor[currentFrame].sourcePosition.x, verticalConveyor[currentFrame].sourcePosition.y, 16, 16}, rl.Vector2{f32(conveyor.position.x), f32(conveyor.position.y)} * 16, rl.WHITE)
 			}
 			rl.DrawTexturePro(conveyorTexture, rl.Rectangle{verticalConveyor[currentFrame].sourcePosition.x, verticalConveyor[currentFrame].sourcePosition.y, 16, 16}, rl.Rectangle{128, 128, 64, 64}, rl.Vector2{32, 32}, 0, rl.WHITE)
 
-			rl.DrawCircleV(ballPosition, 20, rl.ColorAlpha(rl.MAROON, 0.5))
+			// draw player
 			rl.DrawRectangle(i32(player.position.x), i32(player.position.y), 16, 16, rl.GREEN)
 
-			rl.DrawRectangleLines(gridPositionX * 16, gridPositionY * 16, 16, 16, rl.RED)
+			if uiState.muContext.hover_root == nil {
+				rl.DrawCircleV(ballPosition, 20, rl.ColorAlpha(rl.MAROON, 0.5))
+				rl.DrawRectangleLines(gridPositionX * 16, gridPositionY * 16, 16, 16, rl.RED)
+			}
 
 			render_windows(&uiState.muContext)
 
@@ -556,5 +562,4 @@ all_windows :: proc(ctx: ^mu.Context) {
 			mu.draw_rect(ctx, mu.layout_next(ctx), ctx.style.colors[col])
 		}
 	}
-	
 }
