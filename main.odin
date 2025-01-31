@@ -27,12 +27,9 @@ ConveyorDirection :: enum {
 }
 
 Conveyor :: struct {
-	using entity: Entity,
-
+	position: MapPosition,
 	from : ConveyorDirection,
 	to : ConveyorDirection,
-
-	derive: any,
 }
 
 ConveyorFrame :: struct {
@@ -105,12 +102,22 @@ main :: proc() {
 		}
 	}
 
-	conveyors : map[MapPosition]int
-	defer delete_map(conveyors)
-	conveyors[{1,1}] = 1
-	conveyors[{1,2}] = 5
-	conveyors[{1,3}] = 2
-	conveyors[{1,4}] = 5
+	conveyorList : [dynamic]Conveyor
+	defer delete_dynamic_array(conveyorList)
+	// append(&conveyorList, Conveyor {
+	// 	position = MapPosition{1.0, 1.0},
+	// 	from = ConveyorDirection.S,
+	// 	to = ConveyorDirection.N,
+	// })
+
+	// fmt.println("Test: ", conveyorList)
+
+	conveyorMap : map[MapPosition]^Conveyor
+	defer delete_map(conveyorMap)
+	// conveyorMap[{1,1}] = nil
+	// conveyorMap[{1,2}] = 5
+	// conveyorMap[{1,3}] = 2
+	// conveyorMap[{1,4}] = 5
 
 	screenWidth :i32 = 1280
 	screenHeight : i32 = 720
@@ -167,8 +174,19 @@ main :: proc() {
 
 		gridPositionX := i32(ballPosition.x / 16)
 		gridPositionY := i32(ballPosition.y / 16)
-		fmt.printfln("Grid Position: (%d, %d, %d)", gridPositionX, gridPositionY, conveyors[MapPosition{gridPositionX, gridPositionY}])
-		fmt.printfln("Exists %t", MapPosition{gridPositionX, gridPositionY} in conveyors)
+		// fmt.printfln("Grid Position: (%d, %d, %d)", gridPositionX, gridPositionY, conveyorMap[MapPosition{gridPositionX, gridPositionY}])
+		// fmt.printfln("Exists %t", MapPosition{gridPositionX, gridPositionY} in conveyorMap)
+
+		if (rl.IsMouseButtonPressed(rl.MouseButton.LEFT)) {
+			append(&conveyorList, Conveyor {
+				position = MapPosition{gridPositionX, gridPositionY},
+				from = ConveyorDirection.S,
+				to = ConveyorDirection.N,
+			})
+		
+			fmt.printf("Inserted item: ", conveyorList[len(&conveyorList) - 1])
+			conveyorMap[MapPosition{gridPositionX, gridPositionY}] = &conveyorList[len(&conveyorList) - 1]
+		}
 
 		builder := strings.builder_make()
 		defer strings.builder_destroy(&builder)
@@ -189,7 +207,9 @@ main :: proc() {
 				}
 			}
 
-			rl.DrawTextureRec(conveyorTexture, rl.Rectangle{verticalConveyor[currentFrame].sourcePosition.x, verticalConveyor[currentFrame].sourcePosition.y, 16, 16}, rl.Vector2{16, 16} * 10, rl.WHITE)
+			for conveyor in conveyorList {
+				rl.DrawTextureRec(conveyorTexture, rl.Rectangle{verticalConveyor[currentFrame].sourcePosition.x, verticalConveyor[currentFrame].sourcePosition.y, 16, 16}, rl.Vector2{f32(conveyor.position.x), f32(conveyor.position.y)} * 16, rl.WHITE)
+			}
 			rl.DrawTexturePro(conveyorTexture, rl.Rectangle{verticalConveyor[currentFrame].sourcePosition.x, verticalConveyor[currentFrame].sourcePosition.y, 16, 16}, rl.Rectangle{128, 128, 64, 64}, rl.Vector2{32, 32}, 0, rl.WHITE)
 
 			rl.DrawCircleV(ballPosition, 20, rl.ColorAlpha(rl.MAROON, 0.5))
