@@ -78,8 +78,8 @@ player_update :: proc(entity: ^Player, deltaTime: f32) {
 // }
 
 MapPosition :: struct {
-	x: int,
-	y: int,
+	x: i32,
+	y: i32,
 }
 
 main :: proc() {
@@ -105,12 +105,12 @@ main :: proc() {
 		}
 	}
 
-	conveyors : map[MapPosition]^Entity
+	conveyors : map[MapPosition]int
 	defer delete_map(conveyors)
-	conveyors[{1,1}] = nil
-	conveyors[{1,2}] = nil
-	conveyors[{1,3}] = nil
-	conveyors[{1,4}] = nil
+	conveyors[{1,1}] = 1
+	conveyors[{1,2}] = 5
+	conveyors[{1,3}] = 2
+	conveyors[{1,4}] = 5
 
 	screenWidth :i32 = 1280
 	screenHeight : i32 = 720
@@ -165,6 +165,11 @@ main :: proc() {
 
 		ballPosition := rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
 
+		gridPositionX := i32(ballPosition.x / 16)
+		gridPositionY := i32(ballPosition.y / 16)
+		fmt.printfln("Grid Position: (%d, %d, %d)", gridPositionX, gridPositionY, conveyors[MapPosition{gridPositionX, gridPositionY}])
+		fmt.printfln("Exists %t", MapPosition{gridPositionX, gridPositionY} in conveyors)
+
 		builder := strings.builder_make()
 		defer strings.builder_destroy(&builder)
 
@@ -184,11 +189,13 @@ main :: proc() {
 				}
 			}
 
-			rl.DrawTextureRec(conveyorTexture, rl.Rectangle{verticalConveyor[currentFrame].sourcePosition.x, verticalConveyor[currentFrame].sourcePosition.y, 16, 16}, rl.Vector2{16, 16}, rl.WHITE)
+			rl.DrawTextureRec(conveyorTexture, rl.Rectangle{verticalConveyor[currentFrame].sourcePosition.x, verticalConveyor[currentFrame].sourcePosition.y, 16, 16}, rl.Vector2{16, 16} * 10, rl.WHITE)
 			rl.DrawTexturePro(conveyorTexture, rl.Rectangle{verticalConveyor[currentFrame].sourcePosition.x, verticalConveyor[currentFrame].sourcePosition.y, 16, 16}, rl.Rectangle{128, 128, 64, 64}, rl.Vector2{32, 32}, 0, rl.WHITE)
 
-			rl.DrawCircleV(ballPosition, 40, rl.MAROON)
+			rl.DrawCircleV(ballPosition, 20, rl.ColorAlpha(rl.MAROON, 0.5))
 			rl.DrawRectangle(i32(player.position.x), i32(player.position.y), 16, 16, rl.GREEN)
+
+			rl.DrawRectangleLines(gridPositionX * 16, gridPositionY * 16, 16, 16, rl.RED)
 
 			rl.DrawText("Testing", 190, 200, 20, rl.LIGHTGRAY)
 			fps := int(rl.GetFPS())
