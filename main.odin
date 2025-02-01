@@ -285,7 +285,6 @@ main :: proc() {
 		framesCounter += deltaTime
 
 		if framesCounter >= (60.0 / framesSpeed) {
-			fmt.println("Frame")
 			framesCounter -= (60.0 / framesSpeed)
 			currentFrame += 1
 
@@ -372,18 +371,18 @@ main :: proc() {
 		gridPositionY := i32(ballPosition.y / 16)
 
 		if uiState.muContext.hover_root == nil {
-			// fmt.printfln("Grid Position: (%d, %d, %d)", gridPositionX, gridPositionY, conveyorMap[MapPosition{gridPositionX, gridPositionY}])
-			// fmt.printfln("Exists %t", MapPosition{gridPositionX, gridPositionY} in conveyorMap)
-	
 			if (rl.IsMouseButtonPressed(rl.MouseButton.LEFT)) {
-				append(&conveyorList, Conveyor {
-					position = MapPosition{gridPositionX, gridPositionY},
-					from = ConveyorDirection.S,
-					to = ConveyorDirection.N,
-				})
-			
-				fmt.printf("Inserted item: ", conveyorList[len(&conveyorList) - 1])
-				conveyorMap[MapPosition{gridPositionX, gridPositionY}] = &conveyorList[len(&conveyorList) - 1]
+				hasConveyor := MapPosition{gridPositionX, gridPositionY} in conveyorMap
+				if !hasConveyor {
+					append(&conveyorList, Conveyor {
+						position = MapPosition{gridPositionX, gridPositionY},
+						from = ConveyorDirection.S,
+						to = ConveyorDirection.N,
+					})
+				
+					fmt.printf("Inserted item: ", conveyorList[len(&conveyorList) - 1])
+					conveyorMap[MapPosition{gridPositionX, gridPositionY}] = &conveyorList[len(&conveyorList) - 1]
+				}
 			}
 		}
 
