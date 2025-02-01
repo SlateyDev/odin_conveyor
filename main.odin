@@ -188,6 +188,30 @@ uiState := struct {
 	bg = {90, 95, 100, 255},
 }
 
+addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorMap: ^map[MapPosition]^Conveyor, gridPositionX: i32, gridPositionY: i32) {
+	hasConveyor := MapPosition{gridPositionX, gridPositionY} in conveyorMap
+	if !hasConveyor {
+		conveyorN := conveyorMap[MapPosition{gridPositionX, gridPositionY - 1}]
+		conveyorE := conveyorMap[MapPosition{gridPositionX + 1, gridPositionY}]
+		conveyorS := conveyorMap[MapPosition{gridPositionX, gridPositionY + 1}]
+		conveyorW := conveyorMap[MapPosition{gridPositionX - 1, gridPositionY}]
+
+		fmt.println("North: ", conveyorN)
+		fmt.println("East: ", conveyorE)
+		fmt.println("South: ", conveyorS)
+		fmt.println("West: ", conveyorW)
+
+		append_elem(conveyorList, Conveyor {
+			position = MapPosition{gridPositionX, gridPositionY},
+			from = ConveyorDirection.S,
+			to = ConveyorDirection.N,
+		})
+	
+		fmt.println("Inserted item: ", conveyorList[len(conveyorList) - 1])
+		conveyorMap[MapPosition{gridPositionX, gridPositionY}] = &conveyorList[len(conveyorList) - 1]
+	}
+}
+
 main :: proc() {
 	when ODIN_DEBUG {
 		track: mem.Tracking_Allocator
@@ -372,17 +396,7 @@ main :: proc() {
 
 		if uiState.muContext.hover_root == nil {
 			if (rl.IsMouseButtonPressed(rl.MouseButton.LEFT)) {
-				hasConveyor := MapPosition{gridPositionX, gridPositionY} in conveyorMap
-				if !hasConveyor {
-					append(&conveyorList, Conveyor {
-						position = MapPosition{gridPositionX, gridPositionY},
-						from = ConveyorDirection.S,
-						to = ConveyorDirection.N,
-					})
-				
-					fmt.printf("Inserted item: ", conveyorList[len(&conveyorList) - 1])
-					conveyorMap[MapPosition{gridPositionX, gridPositionY}] = &conveyorList[len(&conveyorList) - 1]
-				}
+				addConveyor(&conveyorList, &conveyorMap, gridPositionX, gridPositionY)
 			}
 		}
 
