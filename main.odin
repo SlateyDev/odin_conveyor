@@ -190,6 +190,8 @@ uiState := struct {
 	bg = {90, 95, 100, 255},
 }
 
+orientation := ConveyorDirection.E
+
 addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorMap: ^map[MapPosition]^Conveyor, gridPositionX: i32, gridPositionY: i32) {
 	hasConveyor := MapPosition{gridPositionX, gridPositionY} in conveyorMap
 	if !hasConveyor {
@@ -198,15 +200,34 @@ addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorMap: ^map[MapPosit
 		conveyorS := conveyorMap[MapPosition{gridPositionX, gridPositionY + 1}]
 		conveyorW := conveyorMap[MapPosition{gridPositionX - 1, gridPositionY}]
 
+		// conveyorArray : [4]^Conveyor = {conveyorN, conveyorE, conveyorS, conveyorW}
+
 		fmt.println("North: ", conveyorN)
 		fmt.println("East: ", conveyorE)
 		fmt.println("South: ", conveyorS)
 		fmt.println("West: ", conveyorW)
 
+		conveyorFrom := ConveyorDirection.E
+		conveyorTo := ConveyorDirection.W
+		#partial switch(orientation){
+			case .N:
+				conveyorFrom = .S
+				conveyorTo = .N
+			case .E:
+				conveyorFrom = .W
+				conveyorTo = .E
+			case .S:
+				conveyorFrom = .N
+				conveyorTo = .S
+			case .W:
+				conveyorFrom = .E
+				conveyorTo = .W
+		}
+
 		append_elem(conveyorList, Conveyor {
 			position = MapPosition{gridPositionX, gridPositionY},
-			from = ConveyorDirection.S,
-			to = ConveyorDirection.N,
+			from = conveyorFrom,
+			to = conveyorTo,
 		})
 	
 		fmt.println("Inserted item: ", conveyorList[len(conveyorList) - 1])
@@ -320,11 +341,24 @@ main :: proc() {
 		if uiState.muContext.focus_id == 0 {
 			player_update(&player, deltaTime)
 
-			if (rl.IsKeyDown(rl.KeyboardKey.RIGHT)) do framesSpeed += 5.0
-			if (rl.IsKeyDown(rl.KeyboardKey.LEFT)) do framesSpeed -= 5.0
+			if rl.IsKeyDown(rl.KeyboardKey.RIGHT) do framesSpeed += 5.0
+			if rl.IsKeyDown(rl.KeyboardKey.LEFT) do framesSpeed -= 5.0
 	
-			if (framesSpeed > 10000.0) do framesSpeed = 10000.0
-			if (framesSpeed < 30.0) do framesSpeed = 30.0
+			if framesSpeed > 10000.0 do framesSpeed = 10000.0
+			if framesSpeed < 30.0 do framesSpeed = 30.0
+
+			if rl.IsKeyPressed(rl.KeyboardKey.R) {
+				#partial switch orientation {
+					case .N:
+						orientation = .E
+					case .E:
+						orientation = .S
+					case .S:
+						orientation = .W
+					case .W:
+						orientation = .N
+				}
+			}
 		}
 
 		ballPosition := rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
@@ -427,8 +461,8 @@ main :: proc() {
 				rl.DrawTexturePro(
 					conveyorTexture,
 					rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)},
-					rl.Rectangle{f32(conveyor.position.x * ConveyorPieceSize), f32(conveyor.position.y * ConveyorPieceSize), f32(ConveyorPieceSize), f32(ConveyorPieceSize)},
-					rl.Vector2{f32(ConveyorPieceSize), 0}, conveyorInfo.rotation, rl.WHITE)
+					rl.Rectangle{f32(conveyor.position.x * ConveyorPieceSize + ConveyorPieceSize / 2), f32(conveyor.position.y * ConveyorPieceSize + ConveyorPieceSize / 2), f32(ConveyorPieceSize), f32(ConveyorPieceSize)},
+					rl.Vector2{f32(ConveyorPieceSize) / 2, f32(ConveyorPieceSize) / 2}, conveyorInfo.rotation, rl.WHITE)
 			}
 			// conveyorInfo := conveyorPieces[int(ConveyorDirection.W | ConveyorDirection.S * ConveyorDirection.OUT)]
 			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 2, 64 * 1, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
@@ -470,7 +504,30 @@ main :: proc() {
 			rl.DrawRectangle(i32(player.position.x), i32(player.position.y), 16, 16, rl.GREEN)
 
 			if uiState.muContext.hover_root == nil {
-				rl.DrawCircleV(ballPosition, 20, rl.ColorAlpha(rl.MAROON, 0.5))
+				// rl.DrawCircleV(ballPosition, 20, rl.ColorAlpha(rl.MAROON, 0.5))
+				conveyorFrom := ConveyorDirection.E
+				conveyorTo := ConveyorDirection.W
+				#partial switch(orientation){
+					case .N:
+						conveyorFrom = .S
+						conveyorTo = .N
+					case .E:
+						conveyorFrom = .W
+						conveyorTo = .E
+					case .S:
+						conveyorFrom = .N
+						conveyorTo = .S
+					case .W:
+						conveyorFrom = .E
+						conveyorTo = .W
+				}
+				conveyorInfo := conveyorPieces[int(conveyorFrom | conveyorTo * ConveyorDirection.OUT)]
+				rl.DrawTexturePro(
+					conveyorTexture,
+					rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)},
+					rl.Rectangle{f32(gridPositionX * ConveyorPieceSize + ConveyorPieceSize / 2), f32(gridPositionY * ConveyorPieceSize + ConveyorPieceSize / 2), f32(ConveyorPieceSize), f32(ConveyorPieceSize)},
+					rl.Vector2{f32(ConveyorPieceSize) / 2, f32(ConveyorPieceSize) / 2}, conveyorInfo.rotation, rl.ColorAlpha(rl.WHITE, 0.5))
+
 				rl.DrawRectangleLines(gridPositionX * ConveyorPieceSize, gridPositionY * ConveyorPieceSize, ConveyorPieceSize, ConveyorPieceSize, rl.RED)
 			}
 
