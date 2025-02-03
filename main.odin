@@ -35,6 +35,9 @@ Conveyor :: struct {
 	position: MapPosition,
 	from : ConveyorDirection,
 	to : ConveyorDirection,
+
+	fromLinked : bool,
+	toLinked : bool,
 }
 
 ConveyorFrame :: struct {
@@ -193,24 +196,50 @@ uiState := struct {
 orientation := ConveyorDirection.E
 drawMode := false
 
-addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorMap: ^map[MapPosition]Maybe(int), gridPositionX: i32, gridPositionY: i32) {
-	conveyorIndexItem := conveyorMap[MapPosition{gridPositionX, gridPositionY}]
+addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorIndexMap: ^map[MapPosition]Maybe(int), gridPositionX: i32, gridPositionY: i32, lastGridPositionX : i32, lastGridPositionY : i32) {
+	// conveyorIndexLastItem := conveyorIndexMap[MapPosition{lastGridPositionX, lastGridPositionY}]
+	// conveyorLastItem : ^Conveyor = conveyorIndexLastItem == nil ? nil : &conveyorList[conveyorIndexLastItem.?]
+	
+	conveyorIndexItem := conveyorIndexMap[MapPosition{gridPositionX, gridPositionY}]
 	conveyorItem : ^Conveyor = conveyorIndexItem == nil ? nil : &conveyorList[conveyorIndexItem.?]
-	conveyorIndexNorth := conveyorMap[MapPosition{gridPositionX, gridPositionY - 1}]
-	conveyorIndexEast := conveyorMap[MapPosition{gridPositionX + 1, gridPositionY}]
-	conveyorIndexSouth := conveyorMap[MapPosition{gridPositionX, gridPositionY + 1}]
-	conveyorIndexWest := conveyorMap[MapPosition{gridPositionX - 1, gridPositionY}]
+	conveyorIndexNorth := conveyorIndexMap[MapPosition{gridPositionX, gridPositionY - 1}]
+	conveyorNorth : ^Conveyor = conveyorIndexNorth == nil ? nil : &conveyorList[conveyorIndexNorth.?]
+	conveyorIndexEast := conveyorIndexMap[MapPosition{gridPositionX + 1, gridPositionY}]
+	conveyorEast : ^Conveyor = conveyorIndexEast == nil ? nil : &conveyorList[conveyorIndexEast.?]
+	conveyorIndexSouth := conveyorIndexMap[MapPosition{gridPositionX, gridPositionY + 1}]
+	conveyorSouth : ^Conveyor = conveyorIndexSouth == nil ? nil : &conveyorList[conveyorIndexSouth.?]
+	conveyorIndexWest := conveyorIndexMap[MapPosition{gridPositionX - 1, gridPositionY}]
+	conveyorWest : ^Conveyor = conveyorIndexWest == nil ? nil : &conveyorList[conveyorIndexWest.?]
 
 	// conveyorArray : [4]^Conveyor = {conveyorN, conveyorE, conveyorS, conveyorW}
 	fmt.printfln("Adding conveyor at: (%d, %d)", gridPositionX, gridPositionY)
 	fmt.printfln("Existing: %v", conveyorItem)
-	if conveyorIndexNorth != nil do fmt.println("North: ", conveyorList[conveyorIndexNorth.?])
-	if conveyorIndexEast != nil do fmt.println("East: ", conveyorList[conveyorIndexEast.?])
-	if conveyorIndexSouth != nil do fmt.println("South: ", conveyorList[conveyorIndexSouth.?])
-	if conveyorIndexWest != nil do fmt.println("West: ", conveyorList[conveyorIndexWest.?])
+	fmt.println("North: ", conveyorNorth)
+	fmt.println("East: ", conveyorEast)
+	fmt.println("South: ", conveyorSouth)
+	fmt.println("West: ", conveyorWest)
+
+
+	deltaX := gridPositionX - lastGridPositionX
+	deltaY := gridPositionY - lastGridPositionY
 
 	conveyorFrom : ConveyorDirection
 	conveyorTo : ConveyorDirection
+	if abs(deltaX) <= 1 && abs(deltaY) <= 1 && abs(deltaX) + abs(deltaY) == 1 {
+		if deltaX < 0 {
+			orientation = .W
+		}
+		if deltaX > 0 {
+			orientation = .E
+		}
+		if deltaY < 0 {
+			orientation = .N
+		}
+		if deltaY > 0 {
+			orientation = .S
+		}
+	}
+
 	#partial switch(orientation){
 		case .N:
 			conveyorFrom = .S
@@ -226,6 +255,84 @@ addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorMap: ^map[MapPosit
 			conveyorTo = .W
 	}
 
+	#partial switch(conveyorFrom) {
+		case .N:
+			if conveyorNorth != nil {
+				if !conveyorNorth.toLinked {
+					if conveyorNorth.from != .S {
+						conveyorNorth.to = .S
+						conveyorNorth.toLinked = true
+					}
+				}
+			}
+		case .E:
+			if conveyorEast != nil {
+				if !conveyorEast.toLinked {
+					if conveyorEast.from != .W {
+						conveyorEast.to = .W
+						conveyorEast.toLinked = true
+					}
+				}
+			}
+		case .S:
+			if conveyorSouth != nil {
+				if !conveyorSouth.toLinked {
+					if conveyorSouth.from != .N {
+						conveyorSouth.to = .N
+						conveyorSouth.toLinked = true
+					}
+				}
+			}
+		case .W:
+			if conveyorWest != nil {
+				if !conveyorWest.toLinked {
+					if conveyorWest.from != .E {
+						conveyorWest.to = .E
+						conveyorWest.toLinked = true
+					}
+				}
+			}
+	}
+
+	#partial switch(conveyorTo){
+		case .N:
+			if conveyorNorth != nil {
+				if !conveyorNorth.fromLinked {
+					if conveyorNorth.to != .S {
+						conveyorNorth.from = .S
+						conveyorNorth.fromLinked = true
+					}
+				}
+			}
+		case .E:
+			if conveyorEast != nil {
+				if !conveyorEast.fromLinked {
+					if conveyorEast.to != .W {
+						conveyorEast.from = .W
+						conveyorEast.fromLinked = true
+					}
+				}
+			}
+		case .S:
+			if conveyorSouth != nil {
+				if !conveyorSouth.fromLinked {
+					if conveyorSouth.to != .N {
+						conveyorSouth.from = .N
+						conveyorSouth.fromLinked = true
+					}
+				}
+			}
+		case .W:
+			if conveyorWest != nil {
+				if !conveyorWest.fromLinked {
+					if conveyorWest.to != .E {
+						conveyorWest.from = .E
+						conveyorWest.fromLinked = true
+					}
+				}
+			}
+	}
+
 	if conveyorItem == nil {
 		append_elem(conveyorList, Conveyor {
 			position = MapPosition{gridPositionX, gridPositionY},
@@ -233,21 +340,15 @@ addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorMap: ^map[MapPosit
 			to = conveyorTo,
 		})
 		conveyorIndexItem = len(conveyorList) - 1
-		conveyorMap[MapPosition{gridPositionX, gridPositionY}] = conveyorIndexItem
-		fmt.printfln("Inserted: %v", conveyorList[conveyorIndexItem.?])
+		conveyorItem = &conveyorList[conveyorIndexItem.?]
+		conveyorIndexMap[MapPosition{gridPositionX, gridPositionY}] = conveyorIndexItem
+		fmt.printfln("Inserted: %v", conveyorItem)
 	} else {
 		conveyorItem.from = conveyorFrom
 		conveyorItem.to = conveyorTo
-		fmt.printfln("Updated: %v", conveyorList[conveyorIndexItem.?])
-	}
-
-	for pos, val in conveyorMap {
-		assert(conveyorList[val.?].position == pos, "Stored pos should equal map pos")
+		fmt.printfln("Updated: %v", conveyorItem)
 	}
 }
-
-lastGridPositionX : i32
-lastGridPositionY : i32
 
 main :: proc() {
 	when ODIN_DEBUG {
@@ -272,11 +373,14 @@ main :: proc() {
 		}
 	}
 
+	lastGridPositionX : i32
+	lastGridPositionY : i32
+
 	conveyorList : [dynamic]Conveyor
 	defer delete_dynamic_array(conveyorList)
 
-	conveyorMap : map[MapPosition]Maybe(int)
-	defer delete_map(conveyorMap)
+	conveyorIndexMap : map[MapPosition]Maybe(int)
+	defer delete_map(conveyorIndexMap)
 
 	screenWidth :i32 = 1280
 	screenHeight : i32 = 720
@@ -440,11 +544,11 @@ main :: proc() {
 				drawMode = true
 				lastGridPositionX = gridPositionX
 				lastGridPositionY = gridPositionY
-				addConveyor(&conveyorList, &conveyorMap, gridPositionX, gridPositionY)
+				addConveyor(&conveyorList, &conveyorIndexMap, gridPositionX, gridPositionY, lastGridPositionX, lastGridPositionY)
 			}
 			if rl.IsMouseButtonDown(rl.MouseButton.LEFT) {
 				if lastGridPositionX != gridPositionX || lastGridPositionY != gridPositionY {
-					addConveyor(&conveyorList, &conveyorMap, gridPositionX, gridPositionY)
+					addConveyor(&conveyorList, &conveyorIndexMap, gridPositionX, gridPositionY, lastGridPositionX, lastGridPositionY)
 				
 					lastGridPositionX = gridPositionX
 					lastGridPositionY = gridPositionY
