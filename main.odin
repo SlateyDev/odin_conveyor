@@ -225,7 +225,9 @@ addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorIndexMap: ^map[Map
 
 	conveyorFrom : ConveyorDirection
 	conveyorTo : ConveyorDirection
+	overrideLast := false
 	if abs(deltaX) <= 1 && abs(deltaY) <= 1 && abs(deltaX) + abs(deltaY) == 1 {
+		overrideLast = true
 		if deltaX < 0 {
 			orientation = .W
 		}
@@ -255,45 +257,51 @@ addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorIndexMap: ^map[Map
 			conveyorTo = .W
 	}
 
+	conveyorFromLinked := false
 	#partial switch(conveyorFrom) {
 		case .N:
 			if conveyorNorth != nil {
-				if !conveyorNorth.toLinked {
+				if !conveyorNorth.toLinked || overrideLast {
 					if conveyorNorth.from != .S {
 						conveyorNorth.to = .S
 						conveyorNorth.toLinked = true
+						conveyorFromLinked = true
 					}
 				}
 			}
 		case .E:
 			if conveyorEast != nil {
-				if !conveyorEast.toLinked {
+				if !conveyorEast.toLinked || overrideLast {
 					if conveyorEast.from != .W {
 						conveyorEast.to = .W
 						conveyorEast.toLinked = true
+						conveyorFromLinked = true
 					}
 				}
 			}
 		case .S:
 			if conveyorSouth != nil {
-				if !conveyorSouth.toLinked {
+				if !conveyorSouth.toLinked || overrideLast {
 					if conveyorSouth.from != .N {
 						conveyorSouth.to = .N
 						conveyorSouth.toLinked = true
+						conveyorFromLinked = true
 					}
 				}
 			}
 		case .W:
 			if conveyorWest != nil {
-				if !conveyorWest.toLinked {
+				if !conveyorWest.toLinked || overrideLast {
 					if conveyorWest.from != .E {
 						conveyorWest.to = .E
 						conveyorWest.toLinked = true
+						conveyorFromLinked = true
 					}
 				}
 			}
 	}
 
+	conveyorToLinked := false
 	#partial switch(conveyorTo){
 		case .N:
 			if conveyorNorth != nil {
@@ -301,6 +309,7 @@ addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorIndexMap: ^map[Map
 					if conveyorNorth.to != .S {
 						conveyorNorth.from = .S
 						conveyorNorth.fromLinked = true
+						conveyorToLinked = true
 					}
 				}
 			}
@@ -310,6 +319,7 @@ addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorIndexMap: ^map[Map
 					if conveyorEast.to != .W {
 						conveyorEast.from = .W
 						conveyorEast.fromLinked = true
+						conveyorToLinked = true
 					}
 				}
 			}
@@ -319,6 +329,7 @@ addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorIndexMap: ^map[Map
 					if conveyorSouth.to != .N {
 						conveyorSouth.from = .N
 						conveyorSouth.fromLinked = true
+						conveyorToLinked = true
 					}
 				}
 			}
@@ -328,6 +339,7 @@ addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorIndexMap: ^map[Map
 					if conveyorWest.to != .E {
 						conveyorWest.from = .E
 						conveyorWest.fromLinked = true
+						conveyorToLinked = true
 					}
 				}
 			}
@@ -338,6 +350,8 @@ addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorIndexMap: ^map[Map
 			position = MapPosition{gridPositionX, gridPositionY},
 			from = conveyorFrom,
 			to = conveyorTo,
+			fromLinked = conveyorFromLinked,
+			toLinked = conveyorToLinked,
 		})
 		conveyorIndexItem = len(conveyorList) - 1
 		conveyorItem = &conveyorList[conveyorIndexItem.?]
