@@ -74,75 +74,75 @@ ConveyorPiece :: struct {
 
 ConveyorPieceSize : i32 : 32
 
-conveyorPieces : map[int]ConveyorPiece = {
-	int(ConveyorDirection.S | ConveyorDirection.E * ConveyorDirection.OUT) = ConveyorPiece{
+conveyorPieces : map[ConveyorDirection]ConveyorPiece = {
+	.S | .E * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = 0,
 		flipX = false,
 		flipY = false,
 	},
-	int(ConveyorDirection.S | ConveyorDirection.N * ConveyorDirection.OUT) = ConveyorPiece{
+	.S | .N * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation2,
 		rotation = -90,
 		flipX = false,
 		flipY = false,
 	},
-	int(ConveyorDirection.S | ConveyorDirection.W * ConveyorDirection.OUT) = ConveyorPiece{
+	.S | .W * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = 0,
 		flipX = true,
 		flipY = false,
 	},
-	int(ConveyorDirection.W | ConveyorDirection.S * ConveyorDirection.OUT) = ConveyorPiece{
+	.W | .S * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = 90,
 		flipX = false,
 		flipY = false,
 	},
-	int(ConveyorDirection.W | ConveyorDirection.E * ConveyorDirection.OUT) = ConveyorPiece{
+	.W | .E * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation2,
 		rotation = 0,
 		flipX = false,
 		flipY = false,
 	},
-	int(ConveyorDirection.W | ConveyorDirection.N * ConveyorDirection.OUT) = ConveyorPiece{
+	.W | .N * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = -90,
 		flipX = false,
 		flipY = true,
 	},
 
-	int(ConveyorDirection.N | ConveyorDirection.W * ConveyorDirection.OUT) = ConveyorPiece{
+	.N | .W * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = 0,
 		flipX = true,
 		flipY = true,
 	},
-	int(ConveyorDirection.N | ConveyorDirection.S * ConveyorDirection.OUT) = ConveyorPiece{
+	.N | .S * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation2,
 		rotation = 90,
 		flipX = false,
 		flipY = false,
 	},
-	int(ConveyorDirection.N | ConveyorDirection.E * ConveyorDirection.OUT) = ConveyorPiece{
+	.N | .E * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = 0,
 		flipX = false,
 		flipY = true,
 	},
-	int(ConveyorDirection.E | ConveyorDirection.N * ConveyorDirection.OUT) = ConveyorPiece{
+	.E | .N * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = -90,
 		flipX = false,
 		flipY = false,
 	},
-	int(ConveyorDirection.E | ConveyorDirection.W * ConveyorDirection.OUT) = ConveyorPiece{
+	.E | .W * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation2,
 		rotation = 0,
 		flipX = true,
 		flipY = false,
 	},
-	int(ConveyorDirection.E | ConveyorDirection.S * ConveyorDirection.OUT) = ConveyorPiece{
+	.E | .S * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = -90,
 		flipX = true,
@@ -154,16 +154,16 @@ player_update :: proc(entity: ^Player, deltaTime: f32) {
 	deltaX : f32 = 0.0
 	deltaY : f32 = 0.0
 
-	if rl.IsKeyDown(rl.KeyboardKey.A) {
+	if rl.IsKeyDown(.A) {
 		deltaX -= 1.0
 	}
-	if rl.IsKeyDown(rl.KeyboardKey.D) {
+	if rl.IsKeyDown(.D) {
 		deltaX += 1.0
 	}
-	if rl.IsKeyDown(rl.KeyboardKey.W) {
+	if rl.IsKeyDown(.W) {
 		deltaY -= 1.0
 	}
-	if rl.IsKeyDown(rl.KeyboardKey.S) {
+	if rl.IsKeyDown(.S) {
 		deltaY += 1.0
 	}
 
@@ -464,13 +464,13 @@ main :: proc() {
 		if uiState.muContext.focus_id == 0 {
 			player_update(&player, deltaTime)
 
-			if rl.IsKeyDown(rl.KeyboardKey.RIGHT) do framesSpeed += 5.0
-			if rl.IsKeyDown(rl.KeyboardKey.LEFT) do framesSpeed -= 5.0
+			if rl.IsKeyDown(.RIGHT) do framesSpeed += 5.0
+			if rl.IsKeyDown(.LEFT) do framesSpeed -= 5.0
 	
 			if framesSpeed > 10000.0 do framesSpeed = 10000.0
 			if framesSpeed < 30.0 do framesSpeed = 30.0
 
-			if rl.IsKeyPressed(rl.KeyboardKey.R) {
+			if rl.IsKeyPressed(.R) {
 				#partial switch orientation {
 					case .N:
 						orientation = .E
@@ -597,48 +597,13 @@ main :: proc() {
 				if conveyor.from == conveyor.to {
 					assert(conveyor.from != conveyor.to, "WTF")
 				}
-				conveyorInfo := conveyorPieces[int(conveyor.from | conveyor.to * ConveyorDirection.OUT)]
+				conveyorInfo := conveyorPieces[conveyor.from | conveyor.to * .OUT]
 				rl.DrawTexturePro(
 					conveyorTexture,
 					rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)},
 					rl.Rectangle{f32(conveyor.position.x * ConveyorPieceSize + ConveyorPieceSize / 2), f32(conveyor.position.y * ConveyorPieceSize + ConveyorPieceSize / 2), f32(ConveyorPieceSize), f32(ConveyorPieceSize)},
 					rl.Vector2{f32(ConveyorPieceSize) / 2, f32(ConveyorPieceSize) / 2}, conveyorInfo.rotation, rl.WHITE)
 			}
-			// conveyorInfo := conveyorPieces[int(ConveyorDirection.W | ConveyorDirection.S * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 2, 64 * 1, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.W | ConveyorDirection.E * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 3, 64 * 1, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.W | ConveyorDirection.N * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 4, 64 * 1, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.S | ConveyorDirection.E * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 2, 64 * 2, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.S | ConveyorDirection.N * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 3, 64 * 2, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.S | ConveyorDirection.W * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 4, 64 * 2, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.E | ConveyorDirection.N * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 2, 64 * 3, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.E | ConveyorDirection.W * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 3, 64 * 3, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.E | ConveyorDirection.S * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 4, 64 * 3, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.N | ConveyorDirection.W * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 2, 64 * 4, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.N | ConveyorDirection.S * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 3, 64 * 4, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.N | ConveyorDirection.E * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 4, 64 * 4, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
 
 			// draw player
 			rl.DrawRectangle(i32(player.position.x), i32(player.position.y), 16, 16, rl.GREEN)
@@ -661,7 +626,7 @@ main :: proc() {
 						conveyorFrom = .E
 						conveyorTo = .W
 				}
-				conveyorInfo := conveyorPieces[int(conveyorFrom | conveyorTo * ConveyorDirection.OUT)]
+				conveyorInfo := conveyorPieces[conveyorFrom | conveyorTo * .OUT]
 				rl.DrawTexturePro(
 					conveyorTexture,
 					rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)},
