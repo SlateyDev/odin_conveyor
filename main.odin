@@ -244,17 +244,33 @@ addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorIndexMap: ^map[Map
 
 	#partial switch(orientation){
 		case .N:
-			conveyorFrom = .S
-			conveyorTo = .N
+			conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .S
+			conveyorTo = conveyorItem != nil ? conveyorItem.to : .N
+			if conveyorFrom == conveyorTo {
+				conveyorFrom = .S
+				conveyorTo = .N
+			}
 		case .E:
-			conveyorFrom = .W
-			conveyorTo = .E
+			conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .W
+			conveyorTo = conveyorItem != nil ? conveyorItem.to : .E
+			if conveyorFrom == conveyorTo {
+				conveyorFrom = .W
+				conveyorTo = .E
+			}
 		case .S:
-			conveyorFrom = .N
-			conveyorTo = .S
+			conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .N
+			conveyorTo = conveyorItem != nil ? conveyorItem.to : .S
+			if conveyorFrom == conveyorTo {
+				conveyorFrom = .N
+				conveyorTo = .S
+			}
 		case .W:
-			conveyorFrom = .E
-			conveyorTo = .W
+			conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .E
+			conveyorTo = conveyorItem != nil ? conveyorItem.to : .W
+			if conveyorFrom == conveyorTo {
+				conveyorFrom = .E
+				conveyorTo = .W
+			}
 	}
 
 	conveyorFromLinked := false
