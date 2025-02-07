@@ -15,3 +15,16 @@ into a vscode environment on a system that has odin installed. The
 configuration for the launch/tasks vscode configuration files were
 found in another repository and modified slightly to my own personal
 tastes.
+
+### TODO:
+
+- [x] Open window
+- [x] Render rectangles
+- [x] Render sprite
+- [x] Animate sprite
+- [x] Placement of conveyors on a grid
+- [x] MicroUI
+- [ ] Place item on conveyor
+- [ ] Have item move with conveyor
+- [ ] Have item move to linked conveyor
+- [ ] Make sure items don't overlap other items already on conveyor
