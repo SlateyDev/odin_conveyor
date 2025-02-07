@@ -35,6 +35,9 @@ Conveyor :: struct {
 	position: MapPosition,
 	from : ConveyorDirection,
 	to : ConveyorDirection,
+
+	fromLinked : bool,
+	toLinked : bool,
 }
 
 ConveyorFrame :: struct {
@@ -69,77 +72,77 @@ ConveyorPiece :: struct {
 	flipY : bool,
 }
 
-ConveyorPieceSize : i32 : 32 
+ConveyorPieceSize : i32 : 32
 
-conveyorPieces : map[int]ConveyorPiece = {
-	int(ConveyorDirection.S | ConveyorDirection.E * ConveyorDirection.OUT) = ConveyorPiece{
+conveyorPieces : map[ConveyorDirection]ConveyorPiece = {
+	.S | .E * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = 0,
 		flipX = false,
 		flipY = false,
 	},
-	int(ConveyorDirection.S | ConveyorDirection.N * ConveyorDirection.OUT) = ConveyorPiece{
+	.S | .N * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation2,
 		rotation = -90,
 		flipX = false,
 		flipY = false,
 	},
-	int(ConveyorDirection.S | ConveyorDirection.W * ConveyorDirection.OUT) = ConveyorPiece{
+	.S | .W * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = 0,
 		flipX = true,
 		flipY = false,
 	},
-	int(ConveyorDirection.W | ConveyorDirection.S * ConveyorDirection.OUT) = ConveyorPiece{
+	.W | .S * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = 90,
 		flipX = false,
 		flipY = false,
 	},
-	int(ConveyorDirection.W | ConveyorDirection.E * ConveyorDirection.OUT) = ConveyorPiece{
+	.W | .E * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation2,
 		rotation = 0,
 		flipX = false,
 		flipY = false,
 	},
-	int(ConveyorDirection.W | ConveyorDirection.N * ConveyorDirection.OUT) = ConveyorPiece{
+	.W | .N * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = -90,
 		flipX = false,
 		flipY = true,
 	},
 
-	int(ConveyorDirection.N | ConveyorDirection.W * ConveyorDirection.OUT) = ConveyorPiece{
+	.N | .W * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = 0,
 		flipX = true,
 		flipY = true,
 	},
-	int(ConveyorDirection.N | ConveyorDirection.S * ConveyorDirection.OUT) = ConveyorPiece{
+	.N | .S * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation2,
 		rotation = 90,
 		flipX = false,
 		flipY = false,
 	},
-	int(ConveyorDirection.N | ConveyorDirection.E * ConveyorDirection.OUT) = ConveyorPiece{
+	.N | .E * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = 0,
 		flipX = false,
 		flipY = true,
 	},
-	int(ConveyorDirection.E | ConveyorDirection.N * ConveyorDirection.OUT) = ConveyorPiece{
+	.E | .N * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = -90,
 		flipX = false,
 		flipY = false,
 	},
-	int(ConveyorDirection.E | ConveyorDirection.W * ConveyorDirection.OUT) = ConveyorPiece{
+	.E | .W * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation2,
 		rotation = 0,
 		flipX = true,
 		flipY = false,
 	},
-	int(ConveyorDirection.E | ConveyorDirection.S * ConveyorDirection.OUT) = ConveyorPiece{
+	.E | .S * .OUT = ConveyorPiece{
 		frames = &conveyorAnimation1,
 		rotation = -90,
 		flipX = true,
@@ -151,16 +154,16 @@ player_update :: proc(entity: ^Player, deltaTime: f32) {
 	deltaX : f32 = 0.0
 	deltaY : f32 = 0.0
 
-	if rl.IsKeyDown(rl.KeyboardKey.A) {
+	if rl.IsKeyDown(.A) {
 		deltaX -= 1.0
 	}
-	if rl.IsKeyDown(rl.KeyboardKey.D) {
+	if rl.IsKeyDown(.D) {
 		deltaX += 1.0
 	}
-	if rl.IsKeyDown(rl.KeyboardKey.W) {
+	if rl.IsKeyDown(.W) {
 		deltaY -= 1.0
 	}
-	if rl.IsKeyDown(rl.KeyboardKey.S) {
+	if rl.IsKeyDown(.S) {
 		deltaY += 1.0
 	}
 
@@ -190,27 +193,190 @@ uiState := struct {
 	bg = {90, 95, 100, 255},
 }
 
-addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorMap: ^map[MapPosition]^Conveyor, gridPositionX: i32, gridPositionY: i32) {
-	hasConveyor := MapPosition{gridPositionX, gridPositionY} in conveyorMap
-	if !hasConveyor {
-		conveyorN := conveyorMap[MapPosition{gridPositionX, gridPositionY - 1}]
-		conveyorE := conveyorMap[MapPosition{gridPositionX + 1, gridPositionY}]
-		conveyorS := conveyorMap[MapPosition{gridPositionX, gridPositionY + 1}]
-		conveyorW := conveyorMap[MapPosition{gridPositionX - 1, gridPositionY}]
+orientation := ConveyorDirection.E
+drawMode := false
 
-		fmt.println("North: ", conveyorN)
-		fmt.println("East: ", conveyorE)
-		fmt.println("South: ", conveyorS)
-		fmt.println("West: ", conveyorW)
+addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorIndexMap: ^map[MapPosition]Maybe(int), gridPositionX: i32, gridPositionY: i32, lastGridPositionX : i32, lastGridPositionY : i32) {
+	// conveyorIndexLastItem := conveyorIndexMap[MapPosition{lastGridPositionX, lastGridPositionY}]
+	// conveyorLastItem : ^Conveyor = conveyorIndexLastItem == nil ? nil : &conveyorList[conveyorIndexLastItem.?]
+	
+	conveyorIndexItem := conveyorIndexMap[MapPosition{gridPositionX, gridPositionY}]
+	conveyorItem : ^Conveyor = conveyorIndexItem == nil ? nil : &conveyorList[conveyorIndexItem.?]
+	conveyorIndexNorth := conveyorIndexMap[MapPosition{gridPositionX, gridPositionY - 1}]
+	conveyorNorth : ^Conveyor = conveyorIndexNorth == nil ? nil : &conveyorList[conveyorIndexNorth.?]
+	conveyorIndexEast := conveyorIndexMap[MapPosition{gridPositionX + 1, gridPositionY}]
+	conveyorEast : ^Conveyor = conveyorIndexEast == nil ? nil : &conveyorList[conveyorIndexEast.?]
+	conveyorIndexSouth := conveyorIndexMap[MapPosition{gridPositionX, gridPositionY + 1}]
+	conveyorSouth : ^Conveyor = conveyorIndexSouth == nil ? nil : &conveyorList[conveyorIndexSouth.?]
+	conveyorIndexWest := conveyorIndexMap[MapPosition{gridPositionX - 1, gridPositionY}]
+	conveyorWest : ^Conveyor = conveyorIndexWest == nil ? nil : &conveyorList[conveyorIndexWest.?]
 
+	// conveyorArray : [4]^Conveyor = {conveyorN, conveyorE, conveyorS, conveyorW}
+	fmt.printfln("Adding conveyor at: (%d, %d)", gridPositionX, gridPositionY)
+	fmt.printfln("Existing: %v", conveyorItem)
+	fmt.println("North: ", conveyorNorth)
+	fmt.println("East: ", conveyorEast)
+	fmt.println("South: ", conveyorSouth)
+	fmt.println("West: ", conveyorWest)
+
+
+	deltaX := gridPositionX - lastGridPositionX
+	deltaY := gridPositionY - lastGridPositionY
+
+	conveyorFrom : ConveyorDirection
+	conveyorTo : ConveyorDirection
+	overrideLast := false
+	if abs(deltaX) <= 1 && abs(deltaY) <= 1 && abs(deltaX) + abs(deltaY) == 1 {
+		overrideLast = true
+		if deltaX < 0 {
+			orientation = .W
+		}
+		if deltaX > 0 {
+			orientation = .E
+		}
+		if deltaY < 0 {
+			orientation = .N
+		}
+		if deltaY > 0 {
+			orientation = .S
+		}
+	}
+
+	#partial switch(orientation){
+		case .N:
+			conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .S
+			conveyorTo = conveyorItem != nil ? conveyorItem.to : .N
+			if conveyorFrom == conveyorTo {
+				conveyorFrom = .S
+				conveyorTo = .N
+			}
+		case .E:
+			conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .W
+			conveyorTo = conveyorItem != nil ? conveyorItem.to : .E
+			if conveyorFrom == conveyorTo {
+				conveyorFrom = .W
+				conveyorTo = .E
+			}
+		case .S:
+			conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .N
+			conveyorTo = conveyorItem != nil ? conveyorItem.to : .S
+			if conveyorFrom == conveyorTo {
+				conveyorFrom = .N
+				conveyorTo = .S
+			}
+		case .W:
+			conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .E
+			conveyorTo = conveyorItem != nil ? conveyorItem.to : .W
+			if conveyorFrom == conveyorTo {
+				conveyorFrom = .E
+				conveyorTo = .W
+			}
+	}
+
+	conveyorFromLinked := false
+	#partial switch(conveyorFrom) {
+		case .N:
+			if conveyorNorth != nil {
+				if !conveyorNorth.toLinked || overrideLast {
+					if conveyorNorth.from != .S {
+						conveyorNorth.to = .S
+						conveyorNorth.toLinked = true
+						conveyorFromLinked = true
+					}
+				}
+			}
+		case .E:
+			if conveyorEast != nil {
+				if !conveyorEast.toLinked || overrideLast {
+					if conveyorEast.from != .W {
+						conveyorEast.to = .W
+						conveyorEast.toLinked = true
+						conveyorFromLinked = true
+					}
+				}
+			}
+		case .S:
+			if conveyorSouth != nil {
+				if !conveyorSouth.toLinked || overrideLast {
+					if conveyorSouth.from != .N {
+						conveyorSouth.to = .N
+						conveyorSouth.toLinked = true
+						conveyorFromLinked = true
+					}
+				}
+			}
+		case .W:
+			if conveyorWest != nil {
+				if !conveyorWest.toLinked || overrideLast {
+					if conveyorWest.from != .E {
+						conveyorWest.to = .E
+						conveyorWest.toLinked = true
+						conveyorFromLinked = true
+					}
+				}
+			}
+	}
+
+	conveyorToLinked := false
+	#partial switch(conveyorTo){
+		case .N:
+			if conveyorNorth != nil {
+				if !conveyorNorth.fromLinked {
+					if conveyorNorth.to != .S {
+						conveyorNorth.from = .S
+						conveyorNorth.fromLinked = true
+						conveyorToLinked = true
+					}
+				}
+			}
+		case .E:
+			if conveyorEast != nil {
+				if !conveyorEast.fromLinked {
+					if conveyorEast.to != .W {
+						conveyorEast.from = .W
+						conveyorEast.fromLinked = true
+						conveyorToLinked = true
+					}
+				}
+			}
+		case .S:
+			if conveyorSouth != nil {
+				if !conveyorSouth.fromLinked {
+					if conveyorSouth.to != .N {
+						conveyorSouth.from = .N
+						conveyorSouth.fromLinked = true
+						conveyorToLinked = true
+					}
+				}
+			}
+		case .W:
+			if conveyorWest != nil {
+				if !conveyorWest.fromLinked {
+					if conveyorWest.to != .E {
+						conveyorWest.from = .E
+						conveyorWest.fromLinked = true
+						conveyorToLinked = true
+					}
+				}
+			}
+	}
+
+	if conveyorItem == nil {
 		append_elem(conveyorList, Conveyor {
 			position = MapPosition{gridPositionX, gridPositionY},
-			from = ConveyorDirection.S,
-			to = ConveyorDirection.N,
+			from = conveyorFrom,
+			to = conveyorTo,
+			fromLinked = conveyorFromLinked,
+			toLinked = conveyorToLinked,
 		})
-	
-		fmt.println("Inserted item: ", conveyorList[len(conveyorList) - 1])
-		conveyorMap[MapPosition{gridPositionX, gridPositionY}] = &conveyorList[len(conveyorList) - 1]
+		conveyorIndexItem = len(conveyorList) - 1
+		conveyorItem = &conveyorList[conveyorIndexItem.?]
+		conveyorIndexMap[MapPosition{gridPositionX, gridPositionY}] = conveyorIndexItem
+		fmt.printfln("Inserted: %v", conveyorItem)
+	} else {
+		conveyorItem.from = conveyorFrom
+		conveyorItem.to = conveyorTo
+		fmt.printfln("Updated: %v", conveyorItem)
 	}
 }
 
@@ -237,22 +403,14 @@ main :: proc() {
 		}
 	}
 
+	lastGridPositionX : i32
+	lastGridPositionY : i32
+
 	conveyorList : [dynamic]Conveyor
 	defer delete_dynamic_array(conveyorList)
-	// append(&conveyorList, Conveyor {
-	// 	position = MapPosition{1.0, 1.0},
-	// 	from = ConveyorDirection.S,
-	// 	to = ConveyorDirection.N,
-	// })
 
-	// fmt.println("Test: ", conveyorList)
-
-	conveyorMap : map[MapPosition]^Conveyor
-	defer delete_map(conveyorMap)
-	// conveyorMap[{1,1}] = nil
-	// conveyorMap[{1,2}] = 5
-	// conveyorMap[{1,3}] = 2
-	// conveyorMap[{1,4}] = 5
+	conveyorIndexMap : map[MapPosition]Maybe(int)
+	defer delete_map(conveyorIndexMap)
 
 	screenWidth :i32 = 1280
 	screenHeight : i32 = 720
@@ -306,6 +464,8 @@ main :: proc() {
 	}
 
 	for !rl.WindowShouldClose() {
+		// addConveyor(&conveyorList, &conveyorMap, rand.int31_max(100) - 50, rand.int31_max(50) - 25)
+
 		deltaTime := rl.GetFrameTime()
 
 		framesCounter += deltaTime
@@ -320,11 +480,24 @@ main :: proc() {
 		if uiState.muContext.focus_id == 0 {
 			player_update(&player, deltaTime)
 
-			if (rl.IsKeyDown(rl.KeyboardKey.RIGHT)) do framesSpeed += 5.0
-			if (rl.IsKeyDown(rl.KeyboardKey.LEFT)) do framesSpeed -= 5.0
+			if rl.IsKeyDown(.RIGHT) do framesSpeed += 5.0
+			if rl.IsKeyDown(.LEFT) do framesSpeed -= 5.0
 	
-			if (framesSpeed > 10000.0) do framesSpeed = 10000.0
-			if (framesSpeed < 30.0) do framesSpeed = 30.0
+			if framesSpeed > 10000.0 do framesSpeed = 10000.0
+			if framesSpeed < 30.0 do framesSpeed = 30.0
+
+			if rl.IsKeyPressed(.R) {
+				#partial switch orientation {
+					case .N:
+						orientation = .E
+					case .E:
+						orientation = .S
+					case .S:
+						orientation = .W
+					case .W:
+						orientation = .N
+				}
+			}
 		}
 
 		ballPosition := rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
@@ -397,8 +570,22 @@ main :: proc() {
 		gridPositionY := i32(ballPosition.y / f32(ConveyorPieceSize))
 
 		if uiState.muContext.hover_root == nil {
-			if (rl.IsMouseButtonPressed(rl.MouseButton.LEFT)) {
-				addConveyor(&conveyorList, &conveyorMap, gridPositionX, gridPositionY)
+			if rl.IsMouseButtonPressed(rl.MouseButton.LEFT) {
+				drawMode = true
+				lastGridPositionX = gridPositionX
+				lastGridPositionY = gridPositionY
+				addConveyor(&conveyorList, &conveyorIndexMap, gridPositionX, gridPositionY, lastGridPositionX, lastGridPositionY)
+			}
+			if rl.IsMouseButtonDown(rl.MouseButton.LEFT) {
+				if lastGridPositionX != gridPositionX || lastGridPositionY != gridPositionY {
+					addConveyor(&conveyorList, &conveyorIndexMap, gridPositionX, gridPositionY, lastGridPositionX, lastGridPositionY)
+				
+					lastGridPositionX = gridPositionX
+					lastGridPositionY = gridPositionY
+				}
+			}
+			if rl.IsMouseButtonReleased(rl.MouseButton.LEFT) {
+				drawMode = false
 			}
 		}
 
@@ -423,54 +610,45 @@ main :: proc() {
 
 			// draw conveyors
 			for conveyor in conveyorList {
-				conveyorInfo := conveyorPieces[int(conveyor.from | conveyor.to * ConveyorDirection.OUT)]
+				if conveyor.from == conveyor.to {
+					assert(conveyor.from != conveyor.to, "WTF")
+				}
+				conveyorInfo := conveyorPieces[conveyor.from | conveyor.to * .OUT]
 				rl.DrawTexturePro(
 					conveyorTexture,
 					rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)},
-					rl.Rectangle{f32(conveyor.position.x * ConveyorPieceSize), f32(conveyor.position.y * ConveyorPieceSize), f32(ConveyorPieceSize), f32(ConveyorPieceSize)},
-					rl.Vector2{f32(ConveyorPieceSize), 0}, conveyorInfo.rotation, rl.WHITE)
+					rl.Rectangle{f32(conveyor.position.x * ConveyorPieceSize + ConveyorPieceSize / 2), f32(conveyor.position.y * ConveyorPieceSize + ConveyorPieceSize / 2), f32(ConveyorPieceSize), f32(ConveyorPieceSize)},
+					rl.Vector2{f32(ConveyorPieceSize) / 2, f32(ConveyorPieceSize) / 2}, conveyorInfo.rotation, rl.WHITE)
 			}
-			// conveyorInfo := conveyorPieces[int(ConveyorDirection.W | ConveyorDirection.S * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 2, 64 * 1, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.W | ConveyorDirection.E * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 3, 64 * 1, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.W | ConveyorDirection.N * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 4, 64 * 1, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.S | ConveyorDirection.E * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 2, 64 * 2, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.S | ConveyorDirection.N * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 3, 64 * 2, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.S | ConveyorDirection.W * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 4, 64 * 2, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.E | ConveyorDirection.N * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 2, 64 * 3, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.E | ConveyorDirection.W * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 3, 64 * 3, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.E | ConveyorDirection.S * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 4, 64 * 3, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.N | ConveyorDirection.W * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 2, 64 * 4, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.N | ConveyorDirection.S * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 3, 64 * 4, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
-
-			// conveyorInfo = conveyorPieces[int(ConveyorDirection.N | ConveyorDirection.E * ConveyorDirection.OUT)]
-			// rl.DrawTexturePro(conveyorTexture, rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)}, rl.Rectangle{64 * 4, 64 * 4, 64, 64}, rl.Vector2{32, 32}, conveyorInfo.rotation, rl.WHITE)
 
 			// draw player
 			rl.DrawRectangle(i32(player.position.x), i32(player.position.y), 16, 16, rl.GREEN)
 
 			if uiState.muContext.hover_root == nil {
-				rl.DrawCircleV(ballPosition, 20, rl.ColorAlpha(rl.MAROON, 0.5))
+				// rl.DrawCircleV(ballPosition, 20, rl.ColorAlpha(rl.MAROON, 0.5))
+				conveyorFrom : ConveyorDirection
+				conveyorTo : ConveyorDirection
+				#partial switch(orientation){
+					case .N:
+						conveyorFrom = .S
+						conveyorTo = .N
+					case .E:
+						conveyorFrom = .W
+						conveyorTo = .E
+					case .S:
+						conveyorFrom = .N
+						conveyorTo = .S
+					case .W:
+						conveyorFrom = .E
+						conveyorTo = .W
+				}
+				conveyorInfo := conveyorPieces[conveyorFrom | conveyorTo * .OUT]
+				rl.DrawTexturePro(
+					conveyorTexture,
+					rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)},
+					rl.Rectangle{f32(gridPositionX * ConveyorPieceSize + ConveyorPieceSize / 2), f32(gridPositionY * ConveyorPieceSize + ConveyorPieceSize / 2), f32(ConveyorPieceSize), f32(ConveyorPieceSize)},
+					rl.Vector2{f32(ConveyorPieceSize) / 2, f32(ConveyorPieceSize) / 2}, conveyorInfo.rotation, rl.ColorAlpha(rl.WHITE, 0.5))
+
 				rl.DrawRectangleLines(gridPositionX * ConveyorPieceSize, gridPositionY * ConveyorPieceSize, ConveyorPieceSize, ConveyorPieceSize, rl.RED)
 			}
 
