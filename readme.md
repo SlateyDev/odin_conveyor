@@ -28,3 +28,5 @@ tastes.
 - [ ] Have item move with conveyor
 - [ ] Have item move to linked conveyor
 - [ ] Make sure items don't overlap other items already on conveyor
+- [ ] Move code into separate files
+- [ ] Cleanup code
