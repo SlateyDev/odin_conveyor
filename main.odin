@@ -23,6 +23,10 @@ Player :: struct {
 	moveSpeed: f32,
 }
 
+Item :: struct {
+	using entity: Entity,
+}
+
 ConveyorDirection :: enum {
 	N = 1,
 	E = 2,
@@ -195,6 +199,10 @@ uiState := struct {
 
 orientation := ConveyorDirection.E
 drawMode := false
+
+addItem :: proc(items: ^[dynamic]Item, gridPositionX: i32, gridPositionY: i32) {
+	append(items, Item {position = rl.Vector2{f32(gridPositionX * ConveyorPieceSize + ConveyorPieceSize / 2), f32(gridPositionY * ConveyorPieceSize + ConveyorPieceSize / 2)}})
+}
 
 addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorIndexMap: ^map[MapPosition]Maybe(int), gridPositionX: i32, gridPositionY: i32, lastGridPositionX : i32, lastGridPositionY : i32) {
 	// conveyorIndexLastItem := conveyorIndexMap[MapPosition{lastGridPositionX, lastGridPositionY}]
@@ -406,6 +414,9 @@ main :: proc() {
 	lastGridPositionX : i32
 	lastGridPositionY : i32
 
+	items : [dynamic]Item
+	defer delete_dynamic_array(items)
+
 	conveyorList : [dynamic]Conveyor
 	defer delete_dynamic_array(conveyorList)
 
@@ -477,29 +488,6 @@ main :: proc() {
 			if currentFrame >= numFrames do currentFrame = 0
 		}
 
-		if uiState.muContext.focus_id == 0 {
-			player_update(&player, deltaTime)
-
-			if rl.IsKeyDown(.RIGHT) do framesSpeed += 5.0
-			if rl.IsKeyDown(.LEFT) do framesSpeed -= 5.0
-	
-			if framesSpeed > 10000.0 do framesSpeed = 10000.0
-			if framesSpeed < 30.0 do framesSpeed = 30.0
-
-			if rl.IsKeyPressed(.R) {
-				#partial switch orientation {
-					case .N:
-						orientation = .E
-					case .E:
-						orientation = .S
-					case .S:
-						orientation = .W
-					case .W:
-						orientation = .N
-				}
-			}
-		}
-
 		ballPosition := rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
 
 		{ // text input
@@ -569,14 +557,44 @@ main :: proc() {
 		gridPositionX := i32(ballPosition.x / f32(ConveyorPieceSize))
 		gridPositionY := i32(ballPosition.y / f32(ConveyorPieceSize))
 
+		if uiState.muContext.focus_id == 0 {
+			player_update(&player, deltaTime)
+
+			if rl.IsKeyDown(.RIGHT) do framesSpeed += 5.0
+			if rl.IsKeyDown(.LEFT) do framesSpeed -= 5.0
+	
+			if framesSpeed > 10000.0 do framesSpeed = 10000.0
+			if framesSpeed < 30.0 do framesSpeed = 30.0
+
+			if rl.IsKeyPressed(.R) {
+				#partial switch orientation {
+					case .N:
+						orientation = .E
+					case .E:
+						orientation = .S
+					case .S:
+						orientation = .W
+					case .W:
+						orientation = .N
+				}
+			}
+
+			if uiState.muContext.hover_root == nil {
+				if rl.IsKeyPressed(.I) {
+					addItem(&items, gridPositionX, gridPositionY)
+				}
+			}
+		}
+
+
 		if uiState.muContext.hover_root == nil {
-			if rl.IsMouseButtonPressed(rl.MouseButton.LEFT) {
+			if rl.IsMouseButtonPressed(.LEFT) {
 				drawMode = true
 				lastGridPositionX = gridPositionX
 				lastGridPositionY = gridPositionY
 				addConveyor(&conveyorList, &conveyorIndexMap, gridPositionX, gridPositionY, lastGridPositionX, lastGridPositionY)
 			}
-			if rl.IsMouseButtonDown(rl.MouseButton.LEFT) {
+			if rl.IsMouseButtonDown(.LEFT) {
 				if lastGridPositionX != gridPositionX || lastGridPositionY != gridPositionY {
 					addConveyor(&conveyorList, &conveyorIndexMap, gridPositionX, gridPositionY, lastGridPositionX, lastGridPositionY)
 				
@@ -584,7 +602,7 @@ main :: proc() {
 					lastGridPositionY = gridPositionY
 				}
 			}
-			if rl.IsMouseButtonReleased(rl.MouseButton.LEFT) {
+			if rl.IsMouseButtonReleased(.LEFT) {
 				drawMode = false
 			}
 		}
@@ -619,6 +637,10 @@ main :: proc() {
 					rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)},
 					rl.Rectangle{f32(conveyor.position.x * ConveyorPieceSize + ConveyorPieceSize / 2), f32(conveyor.position.y * ConveyorPieceSize + ConveyorPieceSize / 2), f32(ConveyorPieceSize), f32(ConveyorPieceSize)},
 					rl.Vector2{f32(ConveyorPieceSize) / 2, f32(ConveyorPieceSize) / 2}, conveyorInfo.rotation, rl.WHITE)
+			}
+
+			for item in items {
+				rl.DrawRectanglePro(rl.Rectangle{item.position.x, item.position.y, 12, 12}, rl.Vector2{6, 6}, 0, rl.YELLOW)
 			}
 
 			// draw player
