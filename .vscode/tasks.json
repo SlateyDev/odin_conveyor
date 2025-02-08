@@ -38,6 +38,17 @@
                 "-strict-style",
                 "-show-timings",
             ],
+            "windows": {
+                "args": [
+                    "build",
+                    "${workspaceFolder}",
+                    "-debug",
+                    "-vet",
+                    "-strict-style",
+                    "-show-timings",
+                    "-subsystem=windows",
+                ],
+            },
             "options": {
                 "cwd": "${workspaceFolder}\\build\\debug"
             }
@@ -55,6 +66,16 @@
                 "-strict-style",
                 "-show-timings",
             ],
+            "windows": {
+                "args": [
+                    "build",
+                    "${workspaceFolder}",
+                    "-vet",
+                    "-strict-style",
+                    "-show-timings",
+                    "-subsystem=windows",
+                ],
+            },
             "options": {
                 "cwd": "${workspaceFolder}\\build\\release"
             }
