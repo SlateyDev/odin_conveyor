@@ -1,26 +1,24 @@
 #+feature dynamic-literals
 
-package first
+package conveyor
 
 import "core:fmt"
-import "core:unicode/utf8"
-import "core:mem"
 // import "core:math/rand"
+import "core:mem"
 import "core:strings"
-import rl "vendor:raylib"
+import "core:unicode/utf8"
 import mu "vendor:microui"
+import rl "vendor:raylib"
 
 Entity :: struct {
 	position: rl.Vector2,
- 	rotation: f32,
-
- 	derived: any,
+	rotation: f32,
+	derived:  any,
 }
 
 Player :: struct {
 	using entity: Entity,
-
-	moveSpeed: f32,
+	moveSpeed:    f32,
 }
 
 Item :: struct {
@@ -28,27 +26,35 @@ Item :: struct {
 }
 
 ConveyorDirection :: enum {
-	N = 1,
-	E = 2,
-	S = 4,
-	W = 8,
-	OUT = 16,
+	ACTION = 0,
+	N      = 1,
+	E      = 2,
+	S      = 4,
+	W      = 8,
+	OUT    = 16,
+}
+
+ConveyorAction :: enum {
+	NOTHING = 0,
+	FEEDER  = 1,
+	EATER   = 2,
 }
 
 Conveyor :: struct {
-	position: MapPosition,
-	from : ConveyorDirection,
-	to : ConveyorDirection,
-
-	fromLinked : bool,
-	toLinked : bool,
+	position:   MapPosition,
+	from:       ConveyorDirection,
+	to:         ConveyorDirection,
+	action:     ConveyorAction,
+	fromLinked: bool,
+	toLinked:   bool,
+	fixed:      bool,
 }
 
 ConveyorFrame :: struct {
-	sourcePosition : rl.Vector2,
+	sourcePosition: rl.Vector2,
 }
 
-conveyorAnimation1 : [8]ConveyorFrame = {
+conveyorAnimation1: [8]ConveyorFrame = {
 	ConveyorFrame{sourcePosition = rl.Vector2{0, 0}},
 	ConveyorFrame{sourcePosition = rl.Vector2{64, 0}},
 	ConveyorFrame{sourcePosition = rl.Vector2{32, 16}},
@@ -58,7 +64,7 @@ conveyorAnimation1 : [8]ConveyorFrame = {
 	ConveyorFrame{sourcePosition = rl.Vector2{64, 48}},
 	ConveyorFrame{sourcePosition = rl.Vector2{32, 64}},
 }
-conveyorAnimation2 : [8]ConveyorFrame = {
+conveyorAnimation2: [8]ConveyorFrame = {
 	ConveyorFrame{sourcePosition = rl.Vector2{16, 0}},
 	ConveyorFrame{sourcePosition = rl.Vector2{0, 16}},
 	ConveyorFrame{sourcePosition = rl.Vector2{48, 16}},
@@ -70,83 +76,94 @@ conveyorAnimation2 : [8]ConveyorFrame = {
 }
 
 ConveyorPiece :: struct {
-	frames : ^[8]ConveyorFrame,
-	rotation : f32,
-	flipX : bool,
-	flipY : bool,
+	frames:   ^[8]ConveyorFrame,
+	rotation: f32,
+	flipX:    bool,
+	flipY:    bool,
 }
 
-ConveyorPieceSize : i32 : 32
+ConveyorPieceSize: i32 : 32
 
-conveyorPieces : map[ConveyorDirection]ConveyorPiece = {
-	.S | .E * .OUT = ConveyorPiece{
+conveyorPieces: map[ConveyorDirection]ConveyorPiece = {
+	.S |
+	.E * .OUT = ConveyorPiece {
 		frames = &conveyorAnimation1,
 		rotation = 0,
 		flipX = false,
 		flipY = false,
 	},
-	.S | .N * .OUT = ConveyorPiece{
+	.S |
+	.N * .OUT = ConveyorPiece {
 		frames = &conveyorAnimation2,
 		rotation = -90,
 		flipX = false,
 		flipY = false,
 	},
-	.S | .W * .OUT = ConveyorPiece{
+	.S |
+	.W * .OUT = ConveyorPiece {
 		frames = &conveyorAnimation1,
 		rotation = 0,
 		flipX = true,
 		flipY = false,
 	},
-	.W | .S * .OUT = ConveyorPiece{
+	.W |
+	.S * .OUT = ConveyorPiece {
 		frames = &conveyorAnimation1,
 		rotation = 90,
 		flipX = false,
 		flipY = false,
 	},
-	.W | .E * .OUT = ConveyorPiece{
+	.W |
+	.E * .OUT = ConveyorPiece {
 		frames = &conveyorAnimation2,
 		rotation = 0,
 		flipX = false,
 		flipY = false,
 	},
-	.W | .N * .OUT = ConveyorPiece{
+	.W |
+	.N * .OUT = ConveyorPiece {
 		frames = &conveyorAnimation1,
 		rotation = -90,
 		flipX = false,
 		flipY = true,
 	},
-
-	.N | .W * .OUT = ConveyorPiece{
+	.N |
+	.W * .OUT = ConveyorPiece {
 		frames = &conveyorAnimation1,
 		rotation = 0,
 		flipX = true,
 		flipY = true,
 	},
-	.N | .S * .OUT = ConveyorPiece{
+	.N |
+	.S * .OUT = ConveyorPiece {
 		frames = &conveyorAnimation2,
 		rotation = 90,
 		flipX = false,
 		flipY = false,
 	},
-	.N | .E * .OUT = ConveyorPiece{
+	.N |
+	.E * .OUT = ConveyorPiece {
 		frames = &conveyorAnimation1,
 		rotation = 0,
 		flipX = false,
 		flipY = true,
 	},
-	.E | .N * .OUT = ConveyorPiece{
+	.E |
+	.N * .OUT = ConveyorPiece {
 		frames = &conveyorAnimation1,
 		rotation = -90,
 		flipX = false,
 		flipY = false,
 	},
-	.E | .W * .OUT = ConveyorPiece{
+	.E |
+	.W * .OUT = ConveyorPiece {
 		frames = &conveyorAnimation2,
 		rotation = 0,
 		flipX = true,
 		flipY = false,
 	},
-	.E | .S * .OUT = ConveyorPiece{
+	.E |
+	.S * .OUT = ConveyorPiece {
 		frames = &conveyorAnimation1,
 		rotation = -90,
 		flipX = true,
@@ -155,8 +172,8 @@ conveyorPieces : map[ConveyorDirection]ConveyorPiece = {
 }
 
 player_update :: proc(entity: ^Player, deltaTime: f32) {
-	deltaX : f32 = 0.0
-	deltaY : f32 = 0.0
+	deltaX: f32 = 0.0
+	deltaY: f32 = 0.0
 
 	if rl.IsKeyDown(.A) {
 		deltaX -= 1.0
@@ -187,52 +204,72 @@ MapPosition :: struct {
 }
 
 uiState := struct {
-	muContext: mu.Context,
-	log_buf: [1<<16]byte,
-	log_buf_len: int,
+	muContext:       mu.Context,
+	log_buf:         [1 << 16]byte,
+	log_buf_len:     int,
 	log_buf_updated: bool,
-	bg: mu.Color,
-	atlasTexture: rl.Texture2D,
-}{
+	bg:              mu.Color,
+	atlasTexture:    rl.Texture2D,
+} {
 	bg = {90, 95, 100, 255},
+}
+
+ConveyorModes :: enum {
+	FEEDER,
+	CONNECTOR,
+	EATER,
+	LAST,
 }
 
 orientation := ConveyorDirection.E
 drawMode := false
+conveyorMode := ConveyorModes.FEEDER
 
 addItem :: proc(items: ^[dynamic]Item, gridPositionX: i32, gridPositionY: i32) {
-	append(items, Item {position = rl.Vector2{f32(gridPositionX * ConveyorPieceSize + ConveyorPieceSize / 2), f32(gridPositionY * ConveyorPieceSize + ConveyorPieceSize / 2)}})
+	append(
+		items,
+		Item {
+			position = rl.Vector2 {
+				f32(gridPositionX * ConveyorPieceSize + ConveyorPieceSize / 2),
+				f32(gridPositionY * ConveyorPieceSize + ConveyorPieceSize / 2),
+			},
+		},
+	)
 }
 
-addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorIndexMap: ^map[MapPosition]Maybe(int), gridPositionX: i32, gridPositionY: i32, lastGridPositionX : i32, lastGridPositionY : i32) {
-	// conveyorIndexLastItem := conveyorIndexMap[MapPosition{lastGridPositionX, lastGridPositionY}]
-	// conveyorLastItem : ^Conveyor = conveyorIndexLastItem == nil ? nil : &conveyorList[conveyorIndexLastItem.?]
-	
+addConveyor :: proc(
+	conveyorList: ^[dynamic]Conveyor,
+	conveyorIndexMap: ^map[MapPosition]Maybe(int),
+	gridPositionX: i32,
+	gridPositionY: i32,
+	lastGridPositionX: i32,
+	lastGridPositionY: i32,
+) {
 	conveyorIndexItem := conveyorIndexMap[MapPosition{gridPositionX, gridPositionY}]
-	conveyorItem : ^Conveyor = conveyorIndexItem == nil ? nil : &conveyorList[conveyorIndexItem.?]
+	conveyorItem: ^Conveyor = conveyorIndexItem == nil ? nil : &conveyorList[conveyorIndexItem.?]
 	conveyorIndexNorth := conveyorIndexMap[MapPosition{gridPositionX, gridPositionY - 1}]
-	conveyorNorth : ^Conveyor = conveyorIndexNorth == nil ? nil : &conveyorList[conveyorIndexNorth.?]
+	conveyorNorth: ^Conveyor =
+		conveyorIndexNorth == nil ? nil : &conveyorList[conveyorIndexNorth.?]
 	conveyorIndexEast := conveyorIndexMap[MapPosition{gridPositionX + 1, gridPositionY}]
-	conveyorEast : ^Conveyor = conveyorIndexEast == nil ? nil : &conveyorList[conveyorIndexEast.?]
+	conveyorEast: ^Conveyor = conveyorIndexEast == nil ? nil : &conveyorList[conveyorIndexEast.?]
 	conveyorIndexSouth := conveyorIndexMap[MapPosition{gridPositionX, gridPositionY + 1}]
-	conveyorSouth : ^Conveyor = conveyorIndexSouth == nil ? nil : &conveyorList[conveyorIndexSouth.?]
+	conveyorSouth: ^Conveyor =
+		conveyorIndexSouth == nil ? nil : &conveyorList[conveyorIndexSouth.?]
 	conveyorIndexWest := conveyorIndexMap[MapPosition{gridPositionX - 1, gridPositionY}]
-	conveyorWest : ^Conveyor = conveyorIndexWest == nil ? nil : &conveyorList[conveyorIndexWest.?]
+	conveyorWest: ^Conveyor = conveyorIndexWest == nil ? nil : &conveyorList[conveyorIndexWest.?]
 
-	// conveyorArray : [4]^Conveyor = {conveyorN, conveyorE, conveyorS, conveyorW}
-	fmt.printfln("Adding conveyor at: (%d, %d)", gridPositionX, gridPositionY)
-	fmt.printfln("Existing: %v", conveyorItem)
-	fmt.println("North: ", conveyorNorth)
-	fmt.println("East: ", conveyorEast)
-	fmt.println("South: ", conveyorSouth)
-	fmt.println("West: ", conveyorWest)
-
+	// fmt.printfln("Adding conveyor at: (%d, %d)", gridPositionX, gridPositionY)
+	// fmt.printfln("Existing: %v", conveyorItem)
+	// fmt.println("North: ", conveyorNorth)
+	// fmt.println("East: ", conveyorEast)
+	// fmt.println("South: ", conveyorSouth)
+	// fmt.println("West: ", conveyorWest)
 
 	deltaX := gridPositionX - lastGridPositionX
 	deltaY := gridPositionY - lastGridPositionY
 
-	conveyorFrom : ConveyorDirection
-	conveyorTo : ConveyorDirection
+	conveyorFrom: ConveyorDirection
+	conveyorTo: ConveyorDirection
 	overrideLast := false
 	if abs(deltaX) <= 1 && abs(deltaY) <= 1 && abs(deltaX) + abs(deltaY) == 1 {
 		overrideLast = true
@@ -250,133 +287,136 @@ addConveyor :: proc(conveyorList: ^[dynamic]Conveyor, conveyorIndexMap: ^map[Map
 		}
 	}
 
-	#partial switch(orientation){
-		case .N:
-			conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .S
-			conveyorTo = conveyorItem != nil ? conveyorItem.to : .N
-			if conveyorFrom == conveyorTo {
-				conveyorFrom = .S
-				conveyorTo = .N
-			}
-		case .E:
-			conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .W
-			conveyorTo = conveyorItem != nil ? conveyorItem.to : .E
-			if conveyorFrom == conveyorTo {
-				conveyorFrom = .W
-				conveyorTo = .E
-			}
-		case .S:
-			conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .N
-			conveyorTo = conveyorItem != nil ? conveyorItem.to : .S
-			if conveyorFrom == conveyorTo {
-				conveyorFrom = .N
-				conveyorTo = .S
-			}
-		case .W:
-			conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .E
-			conveyorTo = conveyorItem != nil ? conveyorItem.to : .W
-			if conveyorFrom == conveyorTo {
-				conveyorFrom = .E
-				conveyorTo = .W
-			}
+	#partial switch (orientation) {
+	case .N:
+		conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .S
+		conveyorTo = conveyorItem != nil ? conveyorItem.to : .N
+		if conveyorFrom == conveyorTo {
+			conveyorFrom = .S
+			conveyorTo = .N
+		}
+	case .E:
+		conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .W
+		conveyorTo = conveyorItem != nil ? conveyorItem.to : .E
+		if conveyorFrom == conveyorTo {
+			conveyorFrom = .W
+			conveyorTo = .E
+		}
+	case .S:
+		conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .N
+		conveyorTo = conveyorItem != nil ? conveyorItem.to : .S
+		if conveyorFrom == conveyorTo {
+			conveyorFrom = .N
+			conveyorTo = .S
+		}
+	case .W:
+		conveyorFrom = conveyorItem != nil && !overrideLast ? conveyorItem.from : .E
+		conveyorTo = conveyorItem != nil ? conveyorItem.to : .W
+		if conveyorFrom == conveyorTo {
+			conveyorFrom = .E
+			conveyorTo = .W
+		}
 	}
 
 	conveyorFromLinked := false
-	#partial switch(conveyorFrom) {
-		case .N:
-			if conveyorNorth != nil {
-				if !conveyorNorth.toLinked || overrideLast {
-					if conveyorNorth.from != .S {
-						conveyorNorth.to = .S
-						conveyorNorth.toLinked = true
-						conveyorFromLinked = true
-					}
+	#partial switch (conveyorFrom) {
+	case .N:
+		if conveyorNorth != nil {
+			if !conveyorNorth.toLinked || overrideLast {
+				if conveyorNorth.from != .S {
+					conveyorNorth.to = .S
+					conveyorNorth.toLinked = true
+					conveyorFromLinked = true
 				}
 			}
-		case .E:
-			if conveyorEast != nil {
-				if !conveyorEast.toLinked || overrideLast {
-					if conveyorEast.from != .W {
-						conveyorEast.to = .W
-						conveyorEast.toLinked = true
-						conveyorFromLinked = true
-					}
+		}
+	case .E:
+		if conveyorEast != nil {
+			if !conveyorEast.toLinked || overrideLast {
+				if conveyorEast.from != .W {
+					conveyorEast.to = .W
+					conveyorEast.toLinked = true
+					conveyorFromLinked = true
 				}
 			}
-		case .S:
-			if conveyorSouth != nil {
-				if !conveyorSouth.toLinked || overrideLast {
-					if conveyorSouth.from != .N {
-						conveyorSouth.to = .N
-						conveyorSouth.toLinked = true
-						conveyorFromLinked = true
-					}
+		}
+	case .S:
+		if conveyorSouth != nil {
+			if !conveyorSouth.toLinked || overrideLast {
+				if conveyorSouth.from != .N {
+					conveyorSouth.to = .N
+					conveyorSouth.toLinked = true
+					conveyorFromLinked = true
 				}
 			}
-		case .W:
-			if conveyorWest != nil {
-				if !conveyorWest.toLinked || overrideLast {
-					if conveyorWest.from != .E {
-						conveyorWest.to = .E
-						conveyorWest.toLinked = true
-						conveyorFromLinked = true
-					}
+		}
+	case .W:
+		if conveyorWest != nil {
+			if !conveyorWest.toLinked || overrideLast {
+				if conveyorWest.from != .E {
+					conveyorWest.to = .E
+					conveyorWest.toLinked = true
+					conveyorFromLinked = true
 				}
 			}
+		}
 	}
 
 	conveyorToLinked := false
-	#partial switch(conveyorTo){
-		case .N:
-			if conveyorNorth != nil {
-				if !conveyorNorth.fromLinked {
-					if conveyorNorth.to != .S {
-						conveyorNorth.from = .S
-						conveyorNorth.fromLinked = true
-						conveyorToLinked = true
-					}
+	#partial switch (conveyorTo) {
+	case .N:
+		if conveyorNorth != nil {
+			if !conveyorNorth.fromLinked {
+				if conveyorNorth.to != .S {
+					conveyorNorth.from = .S
+					conveyorNorth.fromLinked = true
+					conveyorToLinked = true
 				}
 			}
-		case .E:
-			if conveyorEast != nil {
-				if !conveyorEast.fromLinked {
-					if conveyorEast.to != .W {
-						conveyorEast.from = .W
-						conveyorEast.fromLinked = true
-						conveyorToLinked = true
-					}
+		}
+	case .E:
+		if conveyorEast != nil {
+			if !conveyorEast.fromLinked {
+				if conveyorEast.to != .W {
+					conveyorEast.from = .W
+					conveyorEast.fromLinked = true
+					conveyorToLinked = true
 				}
 			}
-		case .S:
-			if conveyorSouth != nil {
-				if !conveyorSouth.fromLinked {
-					if conveyorSouth.to != .N {
-						conveyorSouth.from = .N
-						conveyorSouth.fromLinked = true
-						conveyorToLinked = true
-					}
+		}
+	case .S:
+		if conveyorSouth != nil {
+			if !conveyorSouth.fromLinked {
+				if conveyorSouth.to != .N {
+					conveyorSouth.from = .N
+					conveyorSouth.fromLinked = true
+					conveyorToLinked = true
 				}
 			}
-		case .W:
-			if conveyorWest != nil {
-				if !conveyorWest.fromLinked {
-					if conveyorWest.to != .E {
-						conveyorWest.from = .E
-						conveyorWest.fromLinked = true
-						conveyorToLinked = true
-					}
+		}
+	case .W:
+		if conveyorWest != nil {
+			if !conveyorWest.fromLinked {
+				if conveyorWest.to != .E {
+					conveyorWest.from = .E
+					conveyorWest.fromLinked = true
+					conveyorToLinked = true
 				}
 			}
+		}
 	}
 
 	if conveyorItem == nil {
-		append_elem(conveyorList, Conveyor {
-			position = MapPosition{gridPositionX, gridPositionY},
-			from = conveyorFrom,
-			to = conveyorTo,
-			fromLinked = conveyorFromLinked,
-			toLinked = conveyorToLinked,
-		})
+		append_elem(
+			conveyorList,
+			Conveyor {
+				position = MapPosition{gridPositionX, gridPositionY},
+				from = conveyorFrom,
+				to = conveyorTo,
+				fromLinked = conveyorFromLinked,
+				toLinked = conveyorToLinked,
+			},
+		)
 		conveyorIndexItem = len(conveyorList) - 1
 		conveyorItem = &conveyorList[conveyorIndexItem.?]
 		conveyorIndexMap[MapPosition{gridPositionX, gridPositionY}] = conveyorIndexItem
@@ -411,31 +451,31 @@ main :: proc() {
 		}
 	}
 
-	lastGridPositionX : i32
-	lastGridPositionY : i32
+	lastGridPositionX: i32
+	lastGridPositionY: i32
 
-	items : [dynamic]Item
+	items: [dynamic]Item
 	defer delete_dynamic_array(items)
 
-	conveyorList : [dynamic]Conveyor
+	conveyorList: [dynamic]Conveyor
 	defer delete_dynamic_array(conveyorList)
 
-	conveyorIndexMap : map[MapPosition]Maybe(int)
+	conveyorIndexMap: map[MapPosition]Maybe(int)
 	defer delete_map(conveyorIndexMap)
 
-	screenWidth :i32 = 1280
-	screenHeight : i32 = 720
+	screenWidth: i32 = 1280
+	screenHeight: i32 = 720
 
 	player := Player {
-		position = rl.Vector2 {50.0, 50.0},
+		position  = rl.Vector2{50.0, 50.0},
 		moveSpeed = 100.0,
 	}
 	player.derived = &player
 
 	numFrames := 8
 	currentFrame := 0
-	framesCounter : f32 = 0.0
-	framesSpeed : f32 = 60.0
+	framesCounter: f32 = 0.0
+	framesSpeed: f32 = 60.0
 
 	TILE_SIZE :: 16
 
@@ -449,12 +489,12 @@ main :: proc() {
 		pixels[i] = {0xff, 0xff, 0xff, alpha}
 	}
 
-	image := rl.Image{
-		data = raw_data(pixels),
-		width = mu.DEFAULT_ATLAS_WIDTH,
-		height = mu.DEFAULT_ATLAS_HEIGHT,
+	image := rl.Image {
+		data    = raw_data(pixels),
+		width   = mu.DEFAULT_ATLAS_WIDTH,
+		height  = mu.DEFAULT_ATLAS_HEIGHT,
 		mipmaps = 1,
-		format = .UNCOMPRESSED_R8G8B8A8,
+		format  = .UNCOMPRESSED_R8G8B8A8,
 	}
 	uiState.atlasTexture = rl.LoadTextureFromImage(image)
 	defer rl.UnloadTexture(uiState.atlasTexture)
@@ -470,13 +510,11 @@ main :: proc() {
 	// SetTargetFPS(60)
 
 	camera := rl.Camera2D {
-		target = rl.Vector2 {0, 0},
-		zoom = 1,
+		target = rl.Vector2{0, 0},
+		zoom   = 1,
 	}
 
 	for !rl.WindowShouldClose() {
-		// addConveyor(&conveyorList, &conveyorMap, rand.int31_max(100) - 50, rand.int31_max(50) - 25)
-
 		deltaTime := rl.GetFrameTime()
 
 		framesCounter += deltaTime
@@ -490,7 +528,7 @@ main :: proc() {
 
 		ballPosition := rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
 
-		{ // text input
+		{ 	// text input
 			text_input: [512]byte = ---
 			text_input_offset := 0
 			for text_input_offset < len(text_input) {
@@ -511,36 +549,32 @@ main :: proc() {
 		mu.input_scroll(&uiState.muContext, 0, i32(rl.GetMouseWheelMove() * -30))
 
 		// mouse buttons
-		@static buttons_to_key := [?]struct{
+		@(static) buttons_to_key := [?]struct {
 			rl_button: rl.MouseButton,
 			mu_button: mu.Mouse,
-		}{
-			{.LEFT, .LEFT},
-			{.RIGHT, .RIGHT},
-			{.MIDDLE, .MIDDLE},
-		}
+		}{{.LEFT, .LEFT}, {.RIGHT, .RIGHT}, {.MIDDLE, .MIDDLE}}
 		for button in buttons_to_key {
-			if rl.IsMouseButtonPressed(button.rl_button) { 
+			if rl.IsMouseButtonPressed(button.rl_button) {
 				mu.input_mouse_down(&uiState.muContext, mousePos.x, mousePos.y, button.mu_button)
-			} else if rl.IsMouseButtonReleased(button.rl_button) { 
+			} else if rl.IsMouseButtonReleased(button.rl_button) {
 				mu.input_mouse_up(&uiState.muContext, mousePos.x, mousePos.y, button.mu_button)
 			}
 		}
 
 		// keyboard
-		@static keys_to_check := [?]struct{
+		@(static) keys_to_check := [?]struct {
 			rl_key: rl.KeyboardKey,
 			mu_key: mu.Key,
-		}{
-			{.LEFT_SHIFT,    .SHIFT},
-			{.RIGHT_SHIFT,   .SHIFT},
-			{.LEFT_CONTROL,  .CTRL},
+		} {
+			{.LEFT_SHIFT, .SHIFT},
+			{.RIGHT_SHIFT, .SHIFT},
+			{.LEFT_CONTROL, .CTRL},
 			{.RIGHT_CONTROL, .CTRL},
-			{.LEFT_ALT,      .ALT},
-			{.RIGHT_ALT,     .ALT},
-			{.ENTER,         .RETURN},
-			{.KP_ENTER,      .RETURN},
-			{.BACKSPACE,     .BACKSPACE},
+			{.LEFT_ALT, .ALT},
+			{.RIGHT_ALT, .ALT},
+			{.ENTER, .RETURN},
+			{.KP_ENTER, .RETURN},
+			{.BACKSPACE, .BACKSPACE},
 		}
 		for key in keys_to_check {
 			if rl.IsKeyPressed(key.rl_key) {
@@ -562,27 +596,26 @@ main :: proc() {
 
 			if rl.IsKeyDown(.RIGHT) do framesSpeed += 5.0
 			if rl.IsKeyDown(.LEFT) do framesSpeed -= 5.0
-	
+
 			if framesSpeed > 10000.0 do framesSpeed = 10000.0
 			if framesSpeed < 30.0 do framesSpeed = 30.0
 
 			if rl.IsKeyPressed(.R) {
 				#partial switch orientation {
-					case .N:
-						orientation = .E
-					case .E:
-						orientation = .S
-					case .S:
-						orientation = .W
-					case .W:
-						orientation = .N
+				case .N:
+					orientation = .E
+				case .E:
+					orientation = .S
+				case .S:
+					orientation = .W
+				case .W:
+					orientation = .N
 				}
 			}
 
-			if uiState.muContext.hover_root == nil {
-				if rl.IsKeyPressed(.I) {
-					addItem(&items, gridPositionX, gridPositionY)
-				}
+			if rl.IsKeyPressed(.TAB) {
+				conveyorMode =
+				cast(ConveyorModes)((int(conveyorMode) + 1) % int(ConveyorModes.LAST))
 			}
 		}
 
@@ -592,12 +625,26 @@ main :: proc() {
 				drawMode = true
 				lastGridPositionX = gridPositionX
 				lastGridPositionY = gridPositionY
-				addConveyor(&conveyorList, &conveyorIndexMap, gridPositionX, gridPositionY, lastGridPositionX, lastGridPositionY)
+				addConveyor(
+					&conveyorList,
+					&conveyorIndexMap,
+					gridPositionX,
+					gridPositionY,
+					lastGridPositionX,
+					lastGridPositionY,
+				)
 			}
 			if rl.IsMouseButtonDown(.LEFT) {
 				if lastGridPositionX != gridPositionX || lastGridPositionY != gridPositionY {
-					addConveyor(&conveyorList, &conveyorIndexMap, gridPositionX, gridPositionY, lastGridPositionX, lastGridPositionY)
-				
+					addConveyor(
+						&conveyorList,
+						&conveyorIndexMap,
+						gridPositionX,
+						gridPositionY,
+						lastGridPositionX,
+						lastGridPositionY,
+					)
+
 					lastGridPositionX = gridPositionX
 					lastGridPositionY = gridPositionY
 				}
@@ -620,9 +667,22 @@ main :: proc() {
 			currentScreenHeight := rl.GetScreenHeight()
 
 			rl.ClearBackground(rl.RAYWHITE)
-			for y : i32 = 0; y < currentScreenHeight; y += TILE_SIZE {
-				for x : i32 = 0; x < currentScreenWidth; x += TILE_SIZE {
-					rl.DrawRectangle(x, y, TILE_SIZE, TILE_SIZE, rl.ColorFromNormalized(rl.Vector4 {f32(x) / f32(currentScreenWidth), f32(y) / f32(currentScreenHeight), 0, 1}))
+			for y: i32 = 0; y < currentScreenHeight; y += TILE_SIZE {
+				for x: i32 = 0; x < currentScreenWidth; x += TILE_SIZE {
+					rl.DrawRectangle(
+						x,
+						y,
+						TILE_SIZE,
+						TILE_SIZE,
+						rl.ColorFromNormalized(
+							rl.Vector4 {
+								f32(x) / f32(currentScreenWidth),
+								f32(y) / f32(currentScreenHeight),
+								0,
+								1,
+							},
+						),
+					)
 				}
 			}
 
@@ -634,44 +694,80 @@ main :: proc() {
 				conveyorInfo := conveyorPieces[conveyor.from | conveyor.to * .OUT]
 				rl.DrawTexturePro(
 					conveyorTexture,
-					rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)},
-					rl.Rectangle{f32(conveyor.position.x * ConveyorPieceSize + ConveyorPieceSize / 2), f32(conveyor.position.y * ConveyorPieceSize + ConveyorPieceSize / 2), f32(ConveyorPieceSize), f32(ConveyorPieceSize)},
-					rl.Vector2{f32(ConveyorPieceSize) / 2, f32(ConveyorPieceSize) / 2}, conveyorInfo.rotation, rl.WHITE)
+					rl.Rectangle {
+						conveyorInfo.frames[currentFrame].sourcePosition.x,
+						conveyorInfo.frames[currentFrame].sourcePosition.y,
+						16 * (conveyorInfo.flipX ? -1 : 1),
+						16 * (conveyorInfo.flipY ? -1 : 1),
+					},
+					rl.Rectangle {
+						f32(conveyor.position.x * ConveyorPieceSize + ConveyorPieceSize / 2),
+						f32(conveyor.position.y * ConveyorPieceSize + ConveyorPieceSize / 2),
+						f32(ConveyorPieceSize),
+						f32(ConveyorPieceSize),
+					},
+					rl.Vector2{f32(ConveyorPieceSize) / 2, f32(ConveyorPieceSize) / 2},
+					conveyorInfo.rotation,
+					rl.WHITE,
+				)
 			}
 
 			for item in items {
-				rl.DrawRectanglePro(rl.Rectangle{item.position.x, item.position.y, 12, 12}, rl.Vector2{6, 6}, 0, rl.YELLOW)
+				rl.DrawRectanglePro(
+					rl.Rectangle{item.position.x, item.position.y, 12, 12},
+					rl.Vector2{6, 6},
+					0,
+					rl.YELLOW,
+				)
 			}
 
 			// draw player
 			rl.DrawRectangle(i32(player.position.x), i32(player.position.y), 16, 16, rl.GREEN)
 
 			if uiState.muContext.hover_root == nil {
-				// rl.DrawCircleV(ballPosition, 20, rl.ColorAlpha(rl.MAROON, 0.5))
-				conveyorFrom : ConveyorDirection
-				conveyorTo : ConveyorDirection
-				#partial switch(orientation){
-					case .N:
-						conveyorFrom = .S
-						conveyorTo = .N
-					case .E:
-						conveyorFrom = .W
-						conveyorTo = .E
-					case .S:
-						conveyorFrom = .N
-						conveyorTo = .S
-					case .W:
-						conveyorFrom = .E
-						conveyorTo = .W
+				conveyorFrom: ConveyorDirection
+				conveyorTo: ConveyorDirection
+				#partial switch (orientation) {
+				case .N:
+					conveyorFrom = .S
+					conveyorTo = .N
+				case .E:
+					conveyorFrom = .W
+					conveyorTo = .E
+				case .S:
+					conveyorFrom = .N
+					conveyorTo = .S
+				case .W:
+					conveyorFrom = .E
+					conveyorTo = .W
 				}
 				conveyorInfo := conveyorPieces[conveyorFrom | conveyorTo * .OUT]
 				rl.DrawTexturePro(
 					conveyorTexture,
-					rl.Rectangle{conveyorInfo.frames[currentFrame].sourcePosition.x, conveyorInfo.frames[currentFrame].sourcePosition.y, 16 * (conveyorInfo.flipX ? -1 : 1), 16 * (conveyorInfo.flipY ? -1 : 1)},
-					rl.Rectangle{f32(gridPositionX * ConveyorPieceSize + ConveyorPieceSize / 2), f32(gridPositionY * ConveyorPieceSize + ConveyorPieceSize / 2), f32(ConveyorPieceSize), f32(ConveyorPieceSize)},
-					rl.Vector2{f32(ConveyorPieceSize) / 2, f32(ConveyorPieceSize) / 2}, conveyorInfo.rotation, rl.ColorAlpha(rl.WHITE, 0.5))
+					rl.Rectangle {
+						conveyorInfo.frames[currentFrame].sourcePosition.x,
+						conveyorInfo.frames[currentFrame].sourcePosition.y,
+						16 * (conveyorInfo.flipX ? -1 : 1),
+						16 * (conveyorInfo.flipY ? -1 : 1),
+					},
+					rl.Rectangle {
+						f32(gridPositionX * ConveyorPieceSize + ConveyorPieceSize / 2),
+						f32(gridPositionY * ConveyorPieceSize + ConveyorPieceSize / 2),
+						f32(ConveyorPieceSize),
+						f32(ConveyorPieceSize),
+					},
+					rl.Vector2{f32(ConveyorPieceSize) / 2, f32(ConveyorPieceSize) / 2},
+					conveyorInfo.rotation,
+					rl.ColorAlpha(rl.WHITE, 0.5),
+				)
 
-				rl.DrawRectangleLines(gridPositionX * ConveyorPieceSize, gridPositionY * ConveyorPieceSize, ConveyorPieceSize, ConveyorPieceSize, rl.RED)
+				rl.DrawRectangleLines(
+					gridPositionX * ConveyorPieceSize,
+					gridPositionY * ConveyorPieceSize,
+					ConveyorPieceSize,
+					ConveyorPieceSize,
+					rl.RED,
+				)
 			}
 
 			render_windows(&uiState.muContext)
@@ -693,52 +789,52 @@ main :: proc() {
 
 render_windows :: proc(ctx: ^mu.Context) {
 	render_texture :: proc(rect: mu.Rect, pos: [2]i32, color: mu.Color) {
-		source := rl.Rectangle{
-			f32(rect.x),
-			f32(rect.y),
-			f32(rect.w),
-			f32(rect.h),
-		}
+		source := rl.Rectangle{f32(rect.x), f32(rect.y), f32(rect.w), f32(rect.h)}
 		position := rl.Vector2{f32(pos.x), f32(pos.y)}
-		
+
 		rl.DrawTextureRec(uiState.atlasTexture, source, position, transmute(rl.Color)color)
 	}
-	
+
 	rl.BeginScissorMode(0, 0, rl.GetScreenWidth(), rl.GetScreenHeight())
 	defer rl.EndScissorMode()
-	
+
 	command_backing: ^mu.Command
 	for variant in mu.next_command_iterator(ctx, &command_backing) {
 		switch cmd in variant {
 		case ^mu.Command_Text:
 			pos := [2]i32{cmd.pos.x, cmd.pos.y}
-			for ch in cmd.str do if ch&0xc0 != 0x80 {
+			for ch in cmd.str do if ch & 0xc0 != 0x80 {
 				r := min(int(ch), 127)
 				rect := mu.default_atlas[mu.DEFAULT_ATLAS_FONT + r]
 				render_texture(rect, pos, cmd.color)
 				pos.x += rect.w
 			}
 		case ^mu.Command_Rect:
-			rl.DrawRectangle(cmd.rect.x, cmd.rect.y, cmd.rect.w, cmd.rect.h, transmute(rl.Color)cmd.color)
+			rl.DrawRectangle(
+				cmd.rect.x,
+				cmd.rect.y,
+				cmd.rect.w,
+				cmd.rect.h,
+				transmute(rl.Color)cmd.color,
+			)
 		case ^mu.Command_Icon:
 			rect := mu.default_atlas[cmd.id]
-			x := cmd.rect.x + (cmd.rect.w - rect.w)/2
-			y := cmd.rect.y + (cmd.rect.h - rect.h)/2
+			x := cmd.rect.x + (cmd.rect.w - rect.w) / 2
+			y := cmd.rect.y + (cmd.rect.h - rect.h) / 2
 			render_texture(rect, {x, y}, cmd.color)
 		case ^mu.Command_Clip:
 			rl.EndScissorMode()
 			rl.BeginScissorMode(cmd.rect.x, cmd.rect.y, cmd.rect.w, cmd.rect.h)
-		case ^mu.Command_Jump: 
+		case ^mu.Command_Jump:
 			unreachable()
 		}
 	}
 }
 
-
 u8_slider :: proc(ctx: ^mu.Context, val: ^u8, lo, hi: u8) -> (res: mu.Result_Set) {
 	mu.push_id(ctx, uintptr(val))
-	
-	@static tmp: mu.Real
+
+	@(static) tmp: mu.Real
 	tmp = mu.Real(val^)
 	res = mu.slider(ctx, &tmp, mu.Real(lo), mu.Real(hi), 0, "%.0f", {.ALIGN_CENTER})
 	val^ = u8(tmp)
@@ -760,10 +856,9 @@ reset_log :: proc() {
 	uiState.log_buf_len = 0
 }
 
-
 all_windows :: proc(ctx: ^mu.Context) {
-	@static opts := mu.Options{.NO_CLOSE}
-	
+	@(static) opts := mu.Options{.NO_CLOSE}
+
 	if mu.window(ctx, "Demo Window", {40, 40, 300, 450}, opts) {
 		if .ACTIVE in mu.header(ctx, "Window Info") {
 			win := mu.get_current_container(ctx)
@@ -773,12 +868,12 @@ all_windows :: proc(ctx: ^mu.Context) {
 			mu.label(ctx, "Size:")
 			mu.label(ctx, fmt.tprintf("%d, %d", win.rect.w, win.rect.h))
 		}
-		
+
 		if .ACTIVE in mu.header(ctx, "Window Options") {
 			mu.layout_row(ctx, {120, 120, 120}, 0)
 			for opt in mu.Opt {
 				state := opt in opts
-				if .CHANGE in mu.checkbox(ctx, fmt.tprintf("%v", opt), &state)  {
+				if .CHANGE in mu.checkbox(ctx, fmt.tprintf("%v", opt), &state) {
 					if state {
 						opts += {opt}
 					} else {
@@ -787,17 +882,17 @@ all_windows :: proc(ctx: ^mu.Context) {
 				}
 			}
 		}
-		
+
 		if .ACTIVE in mu.header(ctx, "Test Buttons", {.EXPANDED}) {
 			mu.layout_row(ctx, {86, -110, -1})
 			mu.label(ctx, "Test buttons 1:")
-			if .SUBMIT in mu.button(ctx, "Button 1") { write_log("Pressed button 1") }
-			if .SUBMIT in mu.button(ctx, "Button 2") { write_log("Pressed button 2") }
+			if .SUBMIT in mu.button(ctx, "Button 1") {write_log("Pressed button 1")}
+			if .SUBMIT in mu.button(ctx, "Button 2") {write_log("Pressed button 2")}
 			mu.label(ctx, "Test buttons 2:")
-			if .SUBMIT in mu.button(ctx, "Button 3") { write_log("Pressed button 3") }
-			if .SUBMIT in mu.button(ctx, "Button 4") { write_log("Pressed button 4") }
+			if .SUBMIT in mu.button(ctx, "Button 3") {write_log("Pressed button 3")}
+			if .SUBMIT in mu.button(ctx, "Button 4") {write_log("Pressed button 4")}
 		}
-		
+
 		if .ACTIVE in mu.header(ctx, "Tree and Text", {.EXPANDED}) {
 			mu.layout_row(ctx, {140, -1})
 			mu.layout_begin_column(ctx)
@@ -807,54 +902,61 @@ all_windows :: proc(ctx: ^mu.Context) {
 					mu.label(ctx, "world")
 				}
 				if .ACTIVE in mu.treenode(ctx, "Test 1b") {
-					if .SUBMIT in mu.button(ctx, "Button 1") { write_log("Pressed button 1") }
-					if .SUBMIT in mu.button(ctx, "Button 2") { write_log("Pressed button 2") }
+					if .SUBMIT in mu.button(ctx, "Button 1") {write_log("Pressed button 1")}
+					if .SUBMIT in mu.button(ctx, "Button 2") {write_log("Pressed button 2")}
 				}
 			}
 			if .ACTIVE in mu.treenode(ctx, "Test 2") {
 				mu.layout_row(ctx, {53, 53})
-				if .SUBMIT in mu.button(ctx, "Button 3") { write_log("Pressed button 3") }
-				if .SUBMIT in mu.button(ctx, "Button 4") { write_log("Pressed button 4") }
-				if .SUBMIT in mu.button(ctx, "Button 5") { write_log("Pressed button 5") }
-				if .SUBMIT in mu.button(ctx, "Button 6") { write_log("Pressed button 6") }
+				if .SUBMIT in mu.button(ctx, "Button 3") {write_log("Pressed button 3")}
+				if .SUBMIT in mu.button(ctx, "Button 4") {write_log("Pressed button 4")}
+				if .SUBMIT in mu.button(ctx, "Button 5") {write_log("Pressed button 5")}
+				if .SUBMIT in mu.button(ctx, "Button 6") {write_log("Pressed button 6")}
 			}
 			if .ACTIVE in mu.treenode(ctx, "Test 3") {
-				@static checks := [3]bool{true, false, true}
+				@(static) checks := [3]bool{true, false, true}
 				mu.checkbox(ctx, "Checkbox 1", &checks[0])
 				mu.checkbox(ctx, "Checkbox 2", &checks[1])
 				mu.checkbox(ctx, "Checkbox 3", &checks[2])
-				
+
 			}
 			mu.layout_end_column(ctx)
-			
+
 			mu.layout_begin_column(ctx)
 			mu.layout_row(ctx, {-1})
-			mu.text(ctx, 
-				"Lorem ipsum dolor sit amet, consectetur adipiscing "+
-				"elit. Maecenas lacinia, sem eu lacinia molestie, mi risus faucibus "+
+			mu.text(
+				ctx,
+				"Lorem ipsum dolor sit amet, consectetur adipiscing " +
+				"elit. Maecenas lacinia, sem eu lacinia molestie, mi risus faucibus " +
 				"ipsum, eu varius magna felis a nulla.",
-		        )
+			)
 			mu.layout_end_column(ctx)
 		}
-		
+
 		if .ACTIVE in mu.header(ctx, "Background Colour", {.EXPANDED}) {
 			mu.layout_row(ctx, {-78, -1}, 68)
 			mu.layout_begin_column(ctx)
 			{
 				mu.layout_row(ctx, {46, -1}, 0)
-				mu.label(ctx, "Red:");   u8_slider(ctx, &uiState.bg.r, 0, 255)
-				mu.label(ctx, "Green:"); u8_slider(ctx, &uiState.bg.g, 0, 255)
-				mu.label(ctx, "Blue:");  u8_slider(ctx, &uiState.bg.b, 0, 255)
+				mu.label(ctx, "Red:");u8_slider(ctx, &uiState.bg.r, 0, 255)
+				mu.label(ctx, "Green:");u8_slider(ctx, &uiState.bg.g, 0, 255)
+				mu.label(ctx, "Blue:");u8_slider(ctx, &uiState.bg.b, 0, 255)
 			}
 			mu.layout_end_column(ctx)
-			
+
 			r := mu.layout_next(ctx)
 			mu.draw_rect(ctx, r, uiState.bg)
 			mu.draw_box(ctx, mu.expand_rect(r, 1), ctx.style.colors[.BORDER])
-			mu.draw_control_text(ctx, fmt.tprintf("#%02x%02x%02x", uiState.bg.r, uiState.bg.g, uiState.bg.b), r, .TEXT, {.ALIGN_CENTER})
+			mu.draw_control_text(
+				ctx,
+				fmt.tprintf("#%02x%02x%02x", uiState.bg.r, uiState.bg.g, uiState.bg.b),
+				r,
+				.TEXT,
+				{.ALIGN_CENTER},
+			)
 		}
 	}
-	
+
 	if mu.window(ctx, "Log Window", {350, 40, 300, 200}, opts) {
 		mu.layout_row(ctx, {-1}, -28)
 		mu.begin_panel(ctx, "Log")
@@ -866,9 +968,9 @@ all_windows :: proc(ctx: ^mu.Context) {
 			uiState.log_buf_updated = false
 		}
 		mu.end_panel(ctx)
-		
-		@static buf: [128]byte
-		@static buf_len: int
+
+		@(static) buf: [128]byte
+		@(static) buf_len: int
 		submitted := false
 		mu.layout_row(ctx, {-70, -1})
 		if .SUBMIT in mu.textbox(ctx, buf[:], &buf_len) {
@@ -883,9 +985,9 @@ all_windows :: proc(ctx: ^mu.Context) {
 			buf_len = 0
 		}
 	}
-	
+
 	if mu.window(ctx, "Style Window", {350, 250, 300, 240}) {
-		@static colors := [mu.Color_Type]string{
+		@(static) colors := [mu.Color_Type]string {
 			.TEXT         = "text",
 			.BORDER       = "border",
 			.WINDOW_BG    = "window bg",
@@ -902,7 +1004,7 @@ all_windows :: proc(ctx: ^mu.Context) {
 			.SCROLL_THUMB = "scroll thumb",
 			.SELECTION_BG = "selection bg",
 		}
-		
+
 		sw := i32(f32(mu.get_current_container(ctx).body.w) * 0.14)
 		mu.layout_row(ctx, {80, sw, sw, sw, sw, -1})
 		for label, col in colors {

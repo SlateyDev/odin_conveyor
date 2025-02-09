@@ -30,3 +30,22 @@ tastes.
 - [ ] Make sure items don't overlap other items already on conveyor
 - [ ] Move code into separate files
 - [ ] Cleanup code
+
+### Actions:
+
+I couldn't quite think of how I wanted to make feeders/eaters and
+support other possible actions that could happen on the conveyor
+so I created a direction called ACTION that would be like a
+nothing direction, meaning an item was coming from something and
+going to the to direction or coming from a from direction and
+going to something. I then allowed a conveyor section to define
+an action which could be a feeder/eater or anything else. This
+could also allow for an action that would change an object in
+some way and feed in and back out. Still looking how I can use
+this, or should I just make conveyor sections that are specific.
+
+Another possibility is that a conveyor piece is defined as an
+entry point and an exit point (or multiple entry/exit points) with
+an action, and that action could just be do nothing. Then define
+an image for each of these conveyor sections. I would then need to
+define corner pieces possibly and define how things link.
