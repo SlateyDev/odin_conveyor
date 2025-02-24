@@ -47,7 +47,7 @@ Conveyor :: struct {
 	action:     ConveyorAction,
 	fromLinked: bool,
 	toLinked:   bool,
-	fixed:      bool,
+	occupiedBy:	Maybe(int),
 }
 
 ConveyorFrame :: struct {
@@ -225,7 +225,7 @@ orientation := ConveyorDirection.E
 drawMode := false
 conveyorMode := ConveyorModes.FEEDER
 
-addItem :: proc(items: ^[dynamic]Item, gridPositionX: i32, gridPositionY: i32) {
+addItem :: proc(items: ^[dynamic]Item, gridPositionX: i32, gridPositionY: i32) -> (newIndex: int) {
 	append(
 		items,
 		Item {
@@ -235,6 +235,8 @@ addItem :: proc(items: ^[dynamic]Item, gridPositionX: i32, gridPositionY: i32) {
 			},
 		},
 	)
+	newIndex = len(items) - 1
+	return
 }
 
 addConveyor :: proc(
@@ -524,6 +526,8 @@ main :: proc() {
 			currentFrame += 1
 
 			if currentFrame >= numFrames do currentFrame = 0
+
+			conveyor_system(&conveyorList, &conveyorIndexMap, &items)
 		}
 
 		ballPosition := rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
@@ -619,8 +623,7 @@ main :: proc() {
 			}
 		}
 
-
-		if uiState.muContext.hover_root == nil {
+		if uiState.muContext.hover_root == nil && uiState.muContext.focus_id == 0 {
 			if rl.IsMouseButtonPressed(.LEFT) {
 				drawMode = true
 				lastGridPositionX = gridPositionX
@@ -651,6 +654,16 @@ main :: proc() {
 			}
 			if rl.IsMouseButtonReleased(.LEFT) {
 				drawMode = false
+			}
+			if rl.IsKeyPressed(.I) {
+				conveyorIndex := conveyorIndexMap[MapPosition{gridPositionX, gridPositionY}]
+				if conveyorIndex != nil {
+					conveyor := &conveyorList[conveyorIndex.?]
+					if conveyor.occupiedBy == nil {
+						itemIndex := addItem(&items, gridPositionX, gridPositionY)
+						conveyor.occupiedBy = itemIndex
+					}
+				}
 			}
 		}
 
@@ -724,7 +737,7 @@ main :: proc() {
 			// draw player
 			rl.DrawRectangle(i32(player.position.x), i32(player.position.y), 16, 16, rl.GREEN)
 
-			if uiState.muContext.hover_root == nil {
+			if uiState.muContext.hover_root == nil && uiState.muContext.focus_id == 0 {
 				conveyorFrom: ConveyorDirection
 				conveyorTo: ConveyorDirection
 				#partial switch (orientation) {
@@ -887,10 +900,20 @@ all_windows :: proc(ctx: ^mu.Context) {
 			mu.layout_row(ctx, {86, -110, -1})
 			mu.label(ctx, "Test buttons 1:")
 			if .SUBMIT in mu.button(ctx, "Button 1") {write_log("Pressed button 1")}
-			if .SUBMIT in mu.button(ctx, "Button 2") {write_log("Pressed button 2")}
+			if .SUBMIT in mu.button(ctx, "Button 2") {mu.open_popup(ctx, "My Popup")}
 			mu.label(ctx, "Test buttons 2:")
 			if .SUBMIT in mu.button(ctx, "Button 3") {write_log("Pressed button 3")}
 			if .SUBMIT in mu.button(ctx, "Button 4") {write_log("Pressed button 4")}
+
+			if mu.begin_popup(ctx, "My Popup") {
+				if .SUBMIT in mu.button(ctx, "Button 2a") {
+					write_log("Pressed button 2a")
+				}
+				if .SUBMIT in mu.button(ctx, "Button 2b") {
+					write_log("Pressed button 2b")
+				}
+				mu.end_popup(ctx)
+			}
 		}
 
 		if .ACTIVE in mu.header(ctx, "Tree and Text", {.EXPANDED}) {
@@ -1014,6 +1037,52 @@ all_windows :: proc(ctx: ^mu.Context) {
 			u8_slider(ctx, &ctx.style.colors[col].b, 0, 255)
 			u8_slider(ctx, &ctx.style.colors[col].a, 0, 255)
 			mu.draw_rect(ctx, mu.layout_next(ctx), ctx.style.colors[col])
+		}
+	}
+}
+
+//Move item to current segment position, and then hand off to next conveyor segment if connected
+
+conveyor_system :: proc(
+	conveyorList: ^[dynamic]Conveyor,
+	conveyorIndexMap: ^map[MapPosition]Maybe(int),
+	items: ^[dynamic]Item,
+) {
+	for &conveyor in conveyorList {
+		conveyorPosition := rl.Vector2 {
+			f32(conveyor.position.x * ConveyorPieceSize + ConveyorPieceSize / 2),
+			f32(conveyor.position.y * ConveyorPieceSize + ConveyorPieceSize / 2),
+		}
+
+		if conveyor.occupiedBy != nil {
+			item := &items[conveyor.occupiedBy.?]
+			if item.position == conveyorPosition {
+				//1. get direction to next segment
+				nextConveyorX := conveyor.position.x
+				if conveyor.to == .E do nextConveyorX += 1
+				if conveyor.to == .W do nextConveyorX -= 1
+				nextConveyorY := conveyor.position.y
+				if conveyor.to == .N do nextConveyorY -= 1
+				if conveyor.to == .S do nextConveyorY += 1
+				//2. ensure segment has input coming from this segment
+				nextConveyorIndex := conveyorIndexMap[MapPosition{nextConveyorX, nextConveyorY}]
+				if nextConveyorIndex ==  nil do continue
+				nextConveyor := &conveyorList[nextConveyorIndex.?]
+
+				if conveyor.to == .E && nextConveyor.from != .W do continue
+				if conveyor.to == .W && nextConveyor.from != .E do continue
+				if conveyor.to == .N && nextConveyor.from != .S do continue
+				if conveyor.to == .S && nextConveyor.from != .N do continue
+				//3. ensure segment is unoccupied
+				if nextConveyor.occupiedBy != nil do continue
+				//4. hand off item to next segment
+				//	a. set next segment to be occupiedBy this index
+				nextConveyor.occupiedBy = conveyor.occupiedBy
+				//	b. set this segments occupiedBy = nil
+				conveyor.occupiedBy = nil
+				continue
+			}
+			item.position = rl.Vector2MoveTowards(item.position, conveyorPosition, 2)
 		}
 	}
 }
