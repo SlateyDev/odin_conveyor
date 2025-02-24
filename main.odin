@@ -677,27 +677,27 @@ main :: proc() {
 			defer rl.EndMode2D()
 
 			currentScreenWidth := rl.GetScreenWidth()
-			currentScreenHeight := rl.GetScreenHeight()
+			// currentScreenHeight := rl.GetScreenHeight()
 
-			rl.ClearBackground(rl.RAYWHITE)
-			for y: i32 = 0; y < currentScreenHeight; y += TILE_SIZE {
-				for x: i32 = 0; x < currentScreenWidth; x += TILE_SIZE {
-					rl.DrawRectangle(
-						x,
-						y,
-						TILE_SIZE,
-						TILE_SIZE,
-						rl.ColorFromNormalized(
-							rl.Vector4 {
-								f32(x) / f32(currentScreenWidth),
-								f32(y) / f32(currentScreenHeight),
-								0,
-								1,
-							},
-						),
-					)
-				}
-			}
+			rl.ClearBackground(rl.BEIGE)
+			// for y: i32 = 0; y < currentScreenHeight; y += TILE_SIZE {
+			// 	for x: i32 = 0; x < currentScreenWidth; x += TILE_SIZE {
+			// 		rl.DrawRectangle(
+			// 			x,
+			// 			y,
+			// 			TILE_SIZE,
+			// 			TILE_SIZE,
+			// 			rl.ColorFromNormalized(
+			// 				rl.Vector4 {
+			// 					f32(x) / f32(currentScreenWidth),
+			// 					f32(y) / f32(currentScreenHeight),
+			// 					0,
+			// 					1,
+			// 				},
+			// 			),
+			// 		)
+			// 	}
+			// }
 
 			// draw conveyors
 			for conveyor in conveyorList {
