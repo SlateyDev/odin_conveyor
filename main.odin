@@ -792,7 +792,7 @@ main :: proc() {
 			strings.builder_reset(&builder)
 			strings.write_string(&builder, "FPS: ")
 			strings.write_int(&builder, fps)
-			fpsString := strings.to_cstring(&builder)
+			fpsString, _ := strings.to_cstring(&builder)
 
 			fpsStringLength := rl.MeasureText(fpsString, 20)
 			rl.DrawText(fpsString, currentScreenWidth - fpsStringLength - 20, 20, 20, rl.WHITE)
